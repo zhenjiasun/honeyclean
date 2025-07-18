@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "honeyclean"
+version = "1.0.0"
+description = "Automated data profiling and cleaning recommendations"
+readme = "README.md"
+authors = [{name = "Sunny Sun", email = "zhenjiasun@berkeley.edu"}]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10", 
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "matplotlib>=3.6.0",
+    "seaborn>=0.12.0",
+    "plotly>=5.14.0",
+    "scipy>=1.10.0",
+    "scikit-learn>=1.3.0",
+    "click>=8.0.0",
+    "python-pptx>=0.6.21",
+    "missingno>=0.5.2",
+    "pillow>=9.0.0",
+    "python-dateutil>=2.8.0",
+    "tomli>=2.0.0; python_version<'3.11'",
+]
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0", 
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+]
+jupyter = [
+    "ipykernel>=6.20.0",
+    "jupyter>=1.0.0",
+    "notebook>=6.5.0",
+    "jupyterlab>=3.6.0",
+]
+
+[project.scripts]
+honeyclean = "honeyclean.cli:cli"
+
+# Key change: tell setuptools to look in src/
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["honeyclean*"]
+
+[tool.setuptools.package-data]
+honeyclean = ["*.toml", "templates/*"]
