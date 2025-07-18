@@ -1,0 +1,46 @@
+[honeyclean]
+version = "1.0.0"
+description = "Automated data profiling and cleaning recommendations"
+
+[paths]
+input_data = "./data"
+output_reports = "./reports"
+temp_dir = "./temp"
+plots_dir = "./plots"
+
+[analysis]
+chunk_size = 10000
+max_memory_mb = 1024
+enable_statistical_analysis = true
+enable_outlier_detection = true
+enable_correlation_analysis = true
+enable_distribution_analysis = true
+
+[thresholds]
+outlier_threshold = 3.0
+correlation_threshold = 0.8
+high_cardinality_threshold = 50
+missing_value_threshold = 0.05
+
+[visualization]
+figure_dpi = 300
+figure_width = 12
+figure_height = 8
+color_palette = "husl"
+style = "seaborn-v0_8-whitegrid"
+
+[powerpoint]
+slide_width = 13.333
+slide_height = 7.5
+template_style = "professional"
+
+[output]
+generate_html = true
+generate_json = true
+generate_powerpoint = true
+generate_csv_summary = true
+
+[logging]
+level = "INFO"
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+file = "honeyclean.log"
