@@ -5,6 +5,7 @@ Main profiler module for HoneyClean package.
 import pandas as pd
 import numpy as np
 import logging
+import json
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 
@@ -54,18 +55,14 @@ class AutomatedDataProfiler:
             column_analysis = self._analyze_column(df[column], column)
             profiling_results['columns'][column] = column_analysis
         
-        # Generate visualizations
-        logger.info("Generating visualizations...")
-        plot_paths = self._generate_visualizations(df, profiling_results)
-        
-        # Generate reports
+        # Generate reports (no more intermediate visualizations)
         logger.info("Generating reports...")
-        report_paths = self._generate_reports(profiling_results, plot_paths)
+        report_paths = self._generate_reports(profiling_results, df)
         
         logger.info("Data profiling completed successfully!")
         return {
             'profiling_results': profiling_results,
-            'plot_paths': plot_paths,
+            'plot_paths': {},  # No intermediate plots
             'report_paths': report_paths
         }
     
@@ -94,22 +91,33 @@ class AutomatedDataProfiler:
         suggested_type = type_info['suggested_type']
         
         # Perform type-specific analysis
-        if suggested_type == 'numeric' or pd.api.types.is_numeric_dtype(series):
-            analysis = StatisticalAnalyzer.analyze_numeric(series)
-            analysis['type'] = 'numeric'
-            recommendations = DataCleaningRecommendations.get_numeric_recommendations(analysis)
-        elif suggested_type in ['categorical', 'text'] or series.dtype == 'object':
-            analysis = StatisticalAnalyzer.analyze_categorical(series)
-            analysis['type'] = 'categorical'
-            recommendations = DataCleaningRecommendations.get_categorical_recommendations(analysis)
-        elif suggested_type == 'datetime' or pd.api.types.is_datetime64_any_dtype(series):
-            analysis = StatisticalAnalyzer.analyze_datetime(series)
-            analysis['type'] = 'datetime'
-            recommendations = DataCleaningRecommendations.get_datetime_recommendations(analysis)
-        else:
-            analysis = StatisticalAnalyzer.analyze_categorical(series)
-            analysis['type'] = 'other'
-            recommendations = []
+        try:
+            if suggested_type == 'numeric' or pd.api.types.is_numeric_dtype(series):
+                analysis = StatisticalAnalyzer.analyze_numeric(series)
+                analysis['type'] = 'numeric'
+                recommendations = DataCleaningRecommendations.get_numeric_recommendations(analysis)
+            elif suggested_type in ['categorical', 'text'] or series.dtype == 'object':
+                analysis = StatisticalAnalyzer.analyze_categorical(series)
+                analysis['type'] = 'categorical'
+                recommendations = DataCleaningRecommendations.get_categorical_recommendations(analysis)
+            elif suggested_type == 'datetime' or pd.api.types.is_datetime64_any_dtype(series):
+                analysis = StatisticalAnalyzer.analyze_datetime(series)
+                analysis['type'] = 'datetime'
+                recommendations = DataCleaningRecommendations.get_datetime_recommendations(analysis)
+            else:
+                analysis = StatisticalAnalyzer.analyze_categorical(series)
+                analysis['type'] = 'other'
+                recommendations = []
+        except Exception as e:
+            # Fallback analysis if statistical analysis fails
+            analysis = {
+                'type': 'error',
+                'count': len(series),
+                'missing_count': series.isnull().sum(),
+                'missing_percentage': (series.isnull().sum() / len(series)) * 100,
+                'error': str(e)
+            }
+            recommendations = [f"Analysis failed: {str(e)}"]
         
         # Add type inference information
         analysis['type_inference'] = type_info
@@ -117,50 +125,19 @@ class AutomatedDataProfiler:
         
         return analysis
     
-    def _generate_visualizations(self, df: pd.DataFrame, 
-                               profiling_results: Dict[str, Any]) -> Dict[str, str]:
-        """Generate all visualizations."""
-        plot_paths = {}
-        
-        # Missing values plot
-        missing_plot = self.visualization_generator.create_missing_values_plot(
-            df, self.config.plots_dir)
-        if missing_plot:
-            plot_paths['missing_values'] = missing_plot
-        
-        # Correlation heatmap
-        correlation_plot = self.visualization_generator.create_correlation_heatmap(
-            df, self.config.plots_dir)
-        if correlation_plot:
-            plot_paths['correlation_heatmap'] = correlation_plot
-        
-        # Individual column plots
-        for column_name, column_analysis in profiling_results['columns'].items():
-            if column_analysis['type'] == 'numeric':
-                plot_path = self.visualization_generator.create_numeric_distribution_plot(
-                    df[column_name], column_name, self.config.plots_dir)
-                plot_paths[f"{column_name}_distribution"] = plot_path
-            elif column_analysis['type'] == 'categorical':
-                plot_path = self.visualization_generator.create_categorical_plot(
-                    df[column_name], column_name, self.config.plots_dir)
-                plot_paths[f"{column_name}_categorical"] = plot_path
-        
-        return plot_paths
-    
     def _generate_reports(self, profiling_results: Dict[str, Any], 
-                         plot_paths: Dict[str, str]) -> Dict[str, str]:
+                         df: pd.DataFrame) -> Dict[str, str]:
         """Generate all reports."""
         report_paths = {}
         
-        # PowerPoint report
+        # PowerPoint report - pass original DataFrame
         if self.config.generate_powerpoint:
             ppt_path = self.powerpoint_generator.create_presentation(
-                profiling_results, plot_paths)
+                profiling_results, df)
             report_paths['powerpoint'] = ppt_path
         
         # JSON report
         if self.config.generate_json:
-            import json
             json_path = f"{self.config.output_reports}/profiling_results.json"
             with open(json_path, 'w') as f:
                 json.dump(profiling_results, f, indent=2, default=str)
@@ -180,12 +157,12 @@ class AutomatedDataProfiler:
         for column_name, analysis in profiling_results['columns'].items():
             row = {
                 'column_name': column_name,
-                'data_type': analysis['type'],
-                'missing_count': analysis['missing_count'],
-                'missing_percentage': analysis['missing_percentage']
+                'data_type': analysis.get('type', 'unknown'),
+                'missing_count': analysis.get('missing_count', 0),
+                'missing_percentage': analysis.get('missing_percentage', 0)
             }
             
-            if analysis['type'] == 'numeric':
+            if analysis.get('type') == 'numeric':
                 row.update({
                     'mean': analysis.get('mean'),
                     'std': analysis.get('std'),
@@ -193,7 +170,7 @@ class AutomatedDataProfiler:
                     'max': analysis.get('max'),
                     'outliers_count': analysis.get('zscore_outliers')
                 })
-            elif analysis['type'] == 'categorical':
+            elif analysis.get('type') == 'categorical':
                 row.update({
                     'unique_count': analysis.get('unique_count'),
                     'most_common': analysis.get('mode')
