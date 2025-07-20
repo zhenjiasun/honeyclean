@@ -13,8 +13,10 @@ from .config import HoneyCleanConfig
 from .analyzers.statistical import StatisticalAnalyzer
 from .analyzers.type_inference import DataTypeInference
 from .analyzers.recommendations import DataCleaningRecommendations
+from .analyzers.enhanced import EnhancedAnalyzer
 from .visualizations.generators import VisualizationGenerator
 from .reports.powerpoint import PowerPointGenerator
+from .utils.formatters import StatisticalFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,26 @@ class AutomatedDataProfiler:
             'general_recommendations': DataCleaningRecommendations.get_general_recommendations(df)
         }
         
+        # Enhanced analysis based on configuration
+        if self.config.target_col:
+            logger.info("Performing target correlation analysis...")
+            profiling_results['target_correlation'] = EnhancedAnalyzer.analyze_target_correlation(df, self.config.target_col)
+            profiling_results['target_distribution'] = EnhancedAnalyzer.analyze_target_distribution(df, self.config.target_col)
+            
+            # Categorical by target analysis for categorical targets
+            target_cols = self.config.target_col if isinstance(self.config.target_col, list) else [self.config.target_col]
+            for target_col in target_cols:
+                if target_col in df.columns and not pd.api.types.is_numeric_dtype(df[target_col]):
+                    profiling_results[f'categorical_by_{target_col}'] = EnhancedAnalyzer.analyze_categorical_by_target(df, target_col)
+        
+        if self.config.id_cols:
+            logger.info("Performing ID uniqueness analysis...")
+            profiling_results['id_uniqueness'] = EnhancedAnalyzer.check_id_uniqueness(df, self.config.id_cols)
+            
+            # Check composite ID if multiple ID columns
+            if len(self.config.id_cols) > 1:
+                profiling_results['composite_id_uniqueness'] = EnhancedAnalyzer.check_composite_id_uniqueness(df, self.config.id_cols)
+        
         # Analyze each column
         logger.info("Analyzing individual columns...")
         for column in df.columns:
@@ -65,6 +87,63 @@ class AutomatedDataProfiler:
             'plot_paths': {},  # No intermediate plots
             'report_paths': report_paths
         }
+    
+    def display_formatted_results(self, profiling_results: Dict[str, Any]) -> str:
+        """Display formatted statistical results using enhanced formatting."""
+        output = []
+        
+        # Dataset overview
+        dataset_info = profiling_results.get('dataset_info', {})
+        output.append("🗂️  DATASET OVERVIEW (数据集概览)")
+        output.append("=" * 50)
+        output.append(f"Dataset (数据集): {dataset_info.get('name', 'Unknown')}")
+        output.append(f"Shape (形状): {dataset_info.get('shape', 'Unknown')}")
+        output.append(f"Memory Usage (内存使用): {dataset_info.get('memory_usage_mb', 0):.2f} MB")
+        output.append(f"Missing Values (缺失值): {dataset_info.get('total_missing', 0):,} ({dataset_info.get('missing_percentage', 0):.2f}%)")
+        output.append(f"Duplicates (重复行): {dataset_info.get('duplicate_count', 0):,}")
+        output.append("")
+        
+        # Target correlation analysis
+        if 'target_correlation' in profiling_results:
+            for target_col, correlations in profiling_results['target_correlation'].items():
+                output.append(StatisticalFormatter.format_correlation_analysis(correlations['correlations'], target_col))
+        
+        # Target distribution analysis
+        if 'target_distribution' in profiling_results:
+            for target_col, target_stats in profiling_results['target_distribution'].items():
+                output.append(StatisticalFormatter.format_target_distribution(target_stats, target_col))
+        
+        # ID uniqueness check
+        if 'id_uniqueness' in profiling_results:
+            output.append(StatisticalFormatter.format_id_uniqueness_check(profiling_results['id_uniqueness']))
+        
+        # Column-by-column analysis
+        output.append("📊 COLUMN ANALYSIS (列分析)")
+        output.append("=" * 50)
+        
+        for column_name, analysis in profiling_results.get('columns', {}).items():
+            output.append(f"\n📋 Column (列): {column_name}")
+            output.append("-" * 40)
+            
+            if analysis.get('type') == 'numeric':
+                output.append(StatisticalFormatter.format_numeric_stats(analysis))
+            elif analysis.get('type') == 'categorical':
+                output.append(StatisticalFormatter.format_categorical_stats(analysis))
+            elif analysis.get('type') == 'datetime':
+                output.append(StatisticalFormatter.format_datetime_stats(analysis))
+            else:
+                output.append(f"Type (类型): {analysis.get('type', 'Unknown')}")
+                output.append(f"Analysis (分析): {analysis}")
+            
+            # Add recommendations
+            recommendations = analysis.get('recommendations', [])
+            if recommendations:
+                output.append("💡 Recommendations (建议):")
+                for rec in recommendations:
+                    output.append(f"  • {rec}")
+                output.append("")
+        
+        return "\n".join(output)
     
     def _analyze_dataset_info(self, df: pd.DataFrame, name: str) -> Dict[str, Any]:
         """Analyze general dataset information."""

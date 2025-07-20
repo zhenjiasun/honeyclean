@@ -46,7 +46,7 @@ def cli(ctx, config: str, verbose: bool):
         sys.exit(1)
 
 @cli.command()
-@click.argument('input_file', type=click.Path(exists=True))
+@click.argument('input_file', type=click.Path(exists=True), required=False)
 @click.option('--output', '-o', default=None,
               help='Output directory for reports (overrides config)')
 @click.option('--format', '-f', 
@@ -55,19 +55,18 @@ def cli(ctx, config: str, verbose: bool):
 @click.option('--sample', '-s', type=int, default=None,
               help='Sample size for large datasets')
 @click.pass_context
-def profile(ctx, input_file: str, output: Optional[str], 
+def profile(ctx, input_file: Optional[str], output: Optional[str], 
            format: str, sample: Optional[int]):
     """
     Profile a dataset and generate comprehensive reports.
     
-    INPUT_FILE: Path to the CSV file to analyze
+    INPUT_FILE: Path to the CSV file to analyze (optional if set in config)
     """
     config = ctx.obj['config']
     
     # Override output directory if specified
     if output:
         config.output_reports = output
-        config.plots_dir = f"{output}/plots"
         config.create_directories()
     
     # Configure output formats
@@ -78,10 +77,20 @@ def profile(ctx, input_file: str, output: Optional[str],
         config.generate_csv_summary = False
     
     try:
-        click.echo(f"Loading dataset: {input_file}")
+        # Determine input file
+        data_file = input_file or config.input_data
+        if not data_file:
+            click.echo("Error: No input file specified. Either provide INPUT_FILE argument or set input_data in config.", err=True)
+            sys.exit(1)
+        
+        if not Path(data_file).exists():
+            click.echo(f"Error: Input file '{data_file}' does not exist.", err=True)
+            sys.exit(1)
+        
+        click.echo(f"Loading dataset: {data_file}")
         
         # Load data
-        df = pd.read_csv(input_file)
+        df = pd.read_csv(data_file)
         
         # Sample data if specified
         if sample and len(df) > sample:
@@ -94,7 +103,7 @@ def profile(ctx, input_file: str, output: Optional[str],
         profiler = AutomatedDataProfiler(config)
         
         with click.progressbar(length=100, label='Profiling dataset') as bar:
-            results = profiler.profile_dataset(df, Path(input_file).stem)
+            results = profiler.profile_dataset(df, Path(data_file).stem)
             bar.update(100)
         
         # Display results summary
@@ -120,7 +129,6 @@ def profile(ctx, input_file: str, output: Optional[str],
         for report_type, report_path in results['report_paths'].items():
             click.echo(f"  • {report_type.upper()}: {report_path}")
         
-        click.echo(f"\nVisualizations saved in: {config.plots_dir}")
         
     except Exception as e:
         click.echo(f"Error during profiling: {e}", err=True)
@@ -168,28 +176,9 @@ def analyze(ctx, input_file: str, columns: tuple, output: Optional[str]):
         profiler = AutomatedDataProfiler(config)
         results = profiler.profile_dataset(df, f"{Path(input_file).stem}_analysis")
         
-        # Display detailed column analysis
-        for column_name, analysis in results['profiling_results']['columns'].items():
-            click.echo(f"\n{'='*60}")
-            click.echo(f"COLUMN: {column_name}")
-            click.echo(f"{'='*60}")
-            click.echo(f"Type: {analysis['type']}")
-            click.echo(f"Missing: {analysis['missing_count']:,} ({analysis['missing_percentage']:.1f}%)")
-            
-            if analysis['type'] == 'numeric':
-                click.echo(f"Mean: {analysis['mean']:.2f}")
-                click.echo(f"Std: {analysis['std']:.2f}")
-                click.echo(f"Min: {analysis['min']:.2f}")
-                click.echo(f"Max: {analysis['max']:.2f}")
-                click.echo(f"Outliers: {analysis['zscore_outliers']}")
-            elif analysis['type'] == 'categorical':
-                click.echo(f"Unique Values: {analysis['unique_count']}")
-                click.echo(f"Most Common: {analysis['mode']}")
-            
-            if analysis['recommendations']:
-                click.echo(f"\nRecommendations:")
-                for i, rec in enumerate(analysis['recommendations'], 1):
-                    click.echo(f"  {i}. {rec}")
+        # Display formatted analysis
+        formatted_output = profiler.display_formatted_results(results['profiling_results'])
+        click.echo(formatted_output)
         
         click.echo(f"\nDetailed reports saved to: {config.output_reports}")
         
@@ -220,8 +209,6 @@ description = "Automated data profiling and cleaning recommendations"
 [paths]
 input_data = "./data"
 output_reports = "./reports"
-temp_dir = "./temp"
-plots_dir = "./plots"
 
 [analysis]
 chunk_size = 10000
@@ -236,6 +223,14 @@ outlier_threshold = 3.0
 correlation_threshold = 0.8
 high_cardinality_threshold = 50
 missing_value_threshold = 0.05
+
+[columns]
+# Target column(s) for analysis - can be a string or list of strings
+# target_col = "target_variable"
+# target_col = ["target1", "target2"]
+
+# ID columns for uniqueness checking - list of column names
+# id_cols = ["id", "user_id", "transaction_id"]
 
 [visualization]
 figure_dpi = 300
@@ -285,8 +280,6 @@ def info(ctx):
     
     click.echo(f"Input Data Directory: {config.input_data}")
     click.echo(f"Output Reports Directory: {config.output_reports}")
-    click.echo(f"Plots Directory: {config.plots_dir}")
-    click.echo(f"Temp Directory: {config.temp_dir}")
     
     click.echo(f"\nAnalysis Settings:")
     click.echo(f"  • Chunk Size: {config.chunk_size:,}")
@@ -300,6 +293,185 @@ def info(ctx):
     click.echo(f"  • JSON: {config.generate_json}")
     click.echo(f"  • HTML: {config.generate_html}")
     click.echo(f"  • CSV Summary: {config.generate_csv_summary}")
+    
+    # Display target and ID column configuration
+    if config.target_col:
+        click.echo(f"\nTarget Column(s): {config.target_col}")
+    if config.id_cols:
+        click.echo(f"ID Column(s): {config.id_cols}")
+
+@cli.command()
+@click.argument('input_file', type=click.Path(exists=True), required=False)
+@click.option('--target-col', '-t', help='Target column for correlation analysis')
+@click.option('--id-cols', '-i', multiple=True, help='ID columns for uniqueness checking')
+@click.option('--sample', '-s', type=int, default=None,
+              help='Sample size for large datasets')
+@click.pass_context
+def stats(ctx, input_file: Optional[str], target_col: Optional[str], 
+          id_cols: tuple, sample: Optional[int]):
+    """
+    Display formatted statistical analysis with enhanced tables.
+    
+    INPUT_FILE: Path to the CSV file to analyze (optional if set in config)
+    """
+    config = ctx.obj['config']
+    
+    # Override config with command line options
+    if target_col:
+        config.target_col = target_col
+    if id_cols:
+        config.id_cols = list(id_cols)
+    
+    try:
+        # Determine input file
+        data_file = input_file or config.input_data
+        if not data_file:
+            click.echo("Error: No input file specified. Either provide INPUT_FILE argument or set input_data in config.", err=True)
+            sys.exit(1)
+        
+        if not Path(data_file).exists():
+            click.echo(f"Error: Input file '{data_file}' does not exist.", err=True)
+            sys.exit(1)
+        
+        click.echo(f"Loading dataset: {data_file}")
+        
+        # Load data
+        df = pd.read_csv(data_file)
+        
+        # Sample data if specified
+        if sample and len(df) > sample:
+            click.echo(f"Sampling {sample} rows from {len(df)} total rows")
+            df = df.sample(n=sample, random_state=42)
+        
+        click.echo(f"Dataset shape: {df.shape}\n")
+        
+        # Create profiler and run analysis
+        profiler = AutomatedDataProfiler(config)
+        
+        with click.progressbar(length=100, label='Analyzing data') as bar:
+            results = profiler.profile_dataset(df, Path(data_file).stem)
+            bar.update(100)
+        
+        # Display formatted results
+        formatted_output = profiler.display_formatted_results(results['profiling_results'])
+        click.echo("\n" + formatted_output)
+        
+    except Exception as e:
+        click.echo(f"Error during analysis: {e}", err=True)
+        logger.error(f"Stats analysis failed: {e}", exc_info=True)
+        sys.exit(1)
+
+@cli.command()
+@click.argument('input_file', type=click.Path(exists=True), required=False)
+@click.option('--output', '-o', default=None,
+              help='Output directory for reports (overrides config)')
+@click.option('--sample', '-s', type=int, default=None,
+              help='Sample size for large datasets')
+@click.option('--show-stats', is_flag=True, default=True,
+              help='Display formatted statistics (default: True)')
+@click.pass_context
+def run(ctx, input_file: Optional[str], output: Optional[str], 
+        sample: Optional[int], show_stats: bool):
+    """
+    Complete analysis: profile + stats + reports in one command.
+    
+    This command performs comprehensive data analysis including:
+    - Statistical profiling with bilingual tables
+    - Target correlation analysis (if configured)
+    - ID uniqueness validation (if configured)
+    - Professional report generation
+    
+    INPUT_FILE: Path to the CSV file to analyze (optional if set in config)
+    """
+    config = ctx.obj['config']
+    
+    # Override output directory if specified
+    if output:
+        config.output_reports = output
+        config.create_directories()
+    
+    try:
+        # Determine input file
+        data_file = input_file or config.input_data
+        if not data_file:
+            click.echo("Error: No input file specified. Either provide INPUT_FILE argument or set input_data in config.", err=True)
+            sys.exit(1)
+        
+        if not Path(data_file).exists():
+            click.echo(f"Error: Input file '{data_file}' does not exist.", err=True)
+            sys.exit(1)
+        
+        click.echo("🍯 HoneyClean Complete Analysis")
+        click.echo("=" * 50)
+        click.echo(f"📁 Loading dataset: {data_file}")
+        
+        # Load data
+        df = pd.read_csv(data_file)
+        
+        # Sample data if specified
+        if sample and len(df) > sample:
+            click.echo(f"📊 Sampling {sample} rows from {len(df)} total rows")
+            df = df.sample(n=sample, random_state=42)
+        
+        click.echo(f"📏 Dataset shape: {df.shape}")
+        
+        # Display configuration info
+        if config.target_col:
+            click.echo(f"🎯 Target column(s): {config.target_col}")
+        if config.id_cols:
+            click.echo(f"🆔 ID column(s): {config.id_cols}")
+        
+        click.echo("")
+        
+        # Create profiler and run complete analysis
+        profiler = AutomatedDataProfiler(config)
+        
+        with click.progressbar(length=100, label='Running complete analysis') as bar:
+            results = profiler.profile_dataset(df, Path(data_file).stem)
+            bar.update(100)
+        
+        # Display formatted statistical results
+        if show_stats:
+            click.echo("\n" + "="*60)
+            click.echo("📊 DETAILED STATISTICAL ANALYSIS")
+            click.echo("="*60)
+            formatted_output = profiler.display_formatted_results(results['profiling_results'])
+            click.echo(formatted_output)
+        
+        # Display summary
+        click.echo("\n" + "="*50)
+        click.echo("✅ ANALYSIS COMPLETE")
+        click.echo("="*50)
+        
+        dataset_info = results['profiling_results']['dataset_info']
+        click.echo(f"📊 Dataset: {dataset_info['name']}")
+        click.echo(f"📏 Shape: {dataset_info['shape'][0]:,} rows × {dataset_info['shape'][1]} columns")
+        click.echo(f"💾 Memory Usage: {dataset_info['memory_usage_mb']:.1f} MB")
+        click.echo(f"❓ Missing Values: {dataset_info['total_missing']:,} ({dataset_info['missing_percentage']:.1f}%)")
+        click.echo(f"🔄 Duplicate Rows: {dataset_info['duplicate_count']:,}")
+        
+        click.echo(f"\n📈 Column Types:")
+        click.echo(f"  • Numeric: {dataset_info['numeric_columns']}")
+        click.echo(f"  • Categorical: {dataset_info['categorical_columns']}")
+        click.echo(f"  • Datetime: {dataset_info['datetime_columns']}")
+        
+        # Enhanced analysis results
+        if 'target_correlation' in results['profiling_results']:
+            click.echo(f"🎯 Target correlation analysis completed")
+        if 'id_uniqueness' in results['profiling_results']:
+            click.echo(f"🆔 ID uniqueness validation completed")
+        
+        # Show output files
+        click.echo(f"\n📁 Reports generated in: {config.output_reports}")
+        for report_type, report_path in results['report_paths'].items():
+            click.echo(f"  • {report_type.upper()}: {report_path}")
+        
+        click.echo(f"\n🍯 HoneyClean analysis completed successfully!")
+        
+    except Exception as e:
+        click.echo(f"Error during analysis: {e}", err=True)
+        logger.error(f"Complete analysis failed: {e}", exc_info=True)
+        sys.exit(1)
 
 if __name__ == '__main__':
     cli()

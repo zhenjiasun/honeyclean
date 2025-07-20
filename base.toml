@@ -3,10 +3,8 @@ version = "1.0.0"
 description = "Automated data profiling and cleaning recommendations"
 
 [paths]
-input_data = "./data"
-output_reports = "./reports"
-temp_dir = "./temp"
-plots_dir = "./plots"
+input_data = "/Users/zhenjiasun/Desktop/work/爸中国/YH-analysis/data/data_combined_uncleaned.csv"
+output_reports = "/Users/zhenjiasun/Desktop/work/爸中国/YH-analysis/reports"
 
 [analysis]
 chunk_size = 10000
@@ -21,6 +19,14 @@ outlier_threshold = 3.0
 correlation_threshold = 0.8
 high_cardinality_threshold = 50
 missing_value_threshold = 0.05
+
+[columns]
+# Target column(s) for analysis - can be a string or list of strings
+# target_col = "target_variable"
+# target_col = ["target1", "target2"]
+
+# ID columns for uniqueness checking - list of column names
+# id_cols = ["id", "user_id", "transaction_id"]
 
 [visualization]
 figure_dpi = 300

@@ -4,7 +4,7 @@ Configuration management for HoneyClean package.
 
 import sys
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass
 import logging
 
@@ -26,8 +26,6 @@ class HoneyCleanConfig:
     # Paths
     input_data: str = "./data"
     output_reports: str = "./reports"
-    temp_dir: str = "./temp"
-    plots_dir: str = "./plots"
     
     # Analysis settings
     chunk_size: int = 10000
@@ -61,6 +59,10 @@ class HoneyCleanConfig:
     generate_powerpoint: bool = True
     generate_csv_summary: bool = True
     
+    # Target and ID columns configuration
+    target_col: Optional[Union[str, List[str]]] = None
+    id_cols: Optional[List[str]] = None
+    
     # Logging
     log_level: str = "INFO"
     log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -73,7 +75,7 @@ class HoneyCleanConfig:
     
     def create_directories(self):
         """Create necessary directories."""
-        directories = [self.output_reports, self.temp_dir, self.plots_dir]
+        directories = [self.output_reports]
         for directory in directories:
             Path(directory).mkdir(parents=True, exist_ok=True)
     
@@ -110,14 +112,13 @@ class HoneyCleanConfig:
             powerpoint = toml_data.get('powerpoint', {})
             output = toml_data.get('output', {})
             logging_config = toml_data.get('logging', {})
+            columns = toml_data.get('columns', {})
             
             # Create config instance
             config = cls(
                 # Paths
                 input_data=paths.get('input_data', './data'),
                 output_reports=paths.get('output_reports', './reports'),
-                temp_dir=paths.get('temp_dir', './temp'),
-                plots_dir=paths.get('plots_dir', './plots'),
                 
                 # Analysis
                 chunk_size=analysis.get('chunk_size', 10000),
@@ -150,6 +151,10 @@ class HoneyCleanConfig:
                 generate_json=output.get('generate_json', True),
                 generate_powerpoint=output.get('generate_powerpoint', True),
                 generate_csv_summary=output.get('generate_csv_summary', True),
+                
+                # Target and ID columns
+                target_col=columns.get('target_col'),
+                id_cols=columns.get('id_cols'),
                 
                 # Logging
                 log_level=logging_config.get('level', 'INFO'),
