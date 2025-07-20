@@ -271,3 +271,211 @@ class VisualizationGenerator:
             plt.close()
             print(f"Error creating missing values plot: {e}")
             return None
+    
+    def create_enhanced_numeric_plot_for_ppt(self, series: pd.Series, column_name: str) -> Tuple[io.BytesIO, io.BytesIO]:
+        """Create enhanced histogram and percentiles chart for PPT - returns original format."""
+        # Use the original method that returns both plots
+        return self.create_numeric_plot_for_ppt(series, column_name)
+    
+    def create_correlation_plot_for_ppt(self, df: pd.DataFrame, feature_col: str, target_col: str) -> io.BytesIO:
+        """Create correlation scatter plot between feature and target for PPT."""
+        try:
+            self._ensure_chinese_font()
+            
+            # Only use numeric columns for correlation
+            if not (pd.api.types.is_numeric_dtype(df[feature_col]) and pd.api.types.is_numeric_dtype(df[target_col])):
+                return None
+            
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            # Remove missing values
+            clean_df = df[[feature_col, target_col]].dropna()
+            
+            if len(clean_df) == 0:
+                return None
+            
+            # Scatter plot
+            ax.scatter(clean_df[feature_col], clean_df[target_col], alpha=0.6, s=50, color='steelblue')
+            
+            # Add trend line
+            z = np.polyfit(clean_df[feature_col], clean_df[target_col], 1)
+            p = np.poly1d(z)
+            ax.plot(clean_df[feature_col], p(clean_df[feature_col]), "r--", alpha=0.8, linewidth=2)
+            
+            # Calculate correlation
+            corr_coef = clean_df[feature_col].corr(clean_df[target_col])
+            r_squared = corr_coef ** 2
+            
+            # Add correlation info
+            ax.text(0.05, 0.95, f'相关系数: {corr_coef:.4f}\nR²: {r_squared:.4f}', 
+                   transform=ax.transAxes, fontsize=12, verticalalignment='top',
+                   bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))
+            
+            ax.set_title(f'{feature_col} vs {target_col} - 相关性分析', fontsize=14, fontweight='bold')
+            ax.set_xlabel(feature_col, fontsize=12)
+            ax.set_ylabel(target_col, fontsize=12)
+            ax.grid(True, alpha=0.3)
+            
+            plt.tight_layout()
+            
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', bbox_inches='tight', dpi=150,
+                       facecolor='white', edgecolor='none')
+            buffer.seek(0)
+            plt.close()
+            
+            return buffer
+            
+        except Exception as e:
+            plt.close()
+            print(f"Error creating correlation plot: {e}")
+            return None
+    
+    def create_feature_correlation_heatmap_for_ppt(self, df: pd.DataFrame, feature_col: str, top_n: int = 5) -> io.BytesIO:
+        """Create heatmap showing correlations between feature and top N most correlated features for PPT."""
+        try:
+            self._ensure_chinese_font()
+            
+            # Only use numeric columns
+            numeric_df = df.select_dtypes(include=[np.number])
+            
+            if feature_col not in numeric_df.columns or len(numeric_df.columns) < 2:
+                return None
+            
+            # Calculate correlations with the feature
+            correlations = numeric_df.corr()[feature_col].abs().sort_values(ascending=False)
+            
+            # Get top N correlations (excluding self-correlation)
+            top_correlations = correlations.drop(feature_col).head(top_n)
+            
+            if len(top_correlations) == 0:
+                return None
+            
+            # Create correlation matrix for these features
+            selected_features = [feature_col] + list(top_correlations.index)
+            corr_matrix = numeric_df[selected_features].corr()
+            
+            # Create a more compact, square figure
+            fig, ax = plt.subplots(figsize=(8, 6))
+            
+            # Create heatmap without mask for better visibility
+            sns.heatmap(corr_matrix, annot=True, cmap='RdYlBu_r', center=0,
+                       square=True, ax=ax, cbar_kws={'shrink': 0.8}, fmt='.3f',
+                       linewidths=0.5, linecolor='white')
+            
+            ax.set_title(f'{feature_col} - 前{top_n}个相关特征热图', fontsize=12, fontweight='bold')
+            
+            plt.tight_layout()
+            
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', bbox_inches='tight', dpi=150,
+                       facecolor='white', edgecolor='none')
+            buffer.seek(0)
+            plt.close()
+            
+            return buffer
+            
+        except Exception as e:
+            plt.close()
+            print(f"Error creating heatmap: {e}")
+            return None
+    
+    def create_enhanced_categorical_plot_for_ppt(self, series: pd.Series, column_name: str) -> io.BytesIO:
+        """Create enhanced categorical plot with value counts and percentages for PPT."""
+        try:
+            self._ensure_chinese_font()
+            
+            fig, ax = plt.subplots(figsize=(14, 8))
+            
+            # Get top categories
+            top_categories = series.value_counts().head(15)
+            
+            if len(top_categories) == 0:
+                return None
+            
+            # Create horizontal bar plot
+            bars = ax.barh(range(len(top_categories)), top_categories.values, 
+                          color='lightcoral', edgecolor='darkred', alpha=0.8)
+            
+            ax.set_yticks(range(len(top_categories)))
+            ax.set_yticklabels([str(cat)[:30] + '...' if len(str(cat)) > 30 else str(cat) 
+                               for cat in top_categories.index], fontsize=10)
+            
+            # Add value and percentage labels
+            total_count = len(series)
+            for i, (bar, value) in enumerate(zip(bars, top_categories.values)):
+                percentage = (value / total_count) * 100
+                ax.text(value + max(top_categories.values)*0.01, i, 
+                       f'{value} ({percentage:.1f}%)', 
+                       va='center', fontsize=9, fontweight='bold')
+            
+            ax.set_title(f'{column_name} - 类别分布 (前{len(top_categories)}类)', fontsize=14, fontweight='bold')
+            ax.set_xlabel('计数', fontsize=12)
+            ax.grid(True, alpha=0.3, axis='x')
+            
+            # Add statistics text
+            unique_count = series.nunique()
+            cardinality = unique_count / len(series)
+            stats_text = f'统计信息:\n总类别数: {unique_count}\n基数: {cardinality:.3f}\n显示: 前{len(top_categories)}类'
+            ax.text(0.98, 0.02, stats_text, transform=ax.transAxes, fontsize=10,
+                   verticalalignment='bottom', horizontalalignment='right',
+                   bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+            
+            plt.tight_layout()
+            
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', bbox_inches='tight', dpi=150,
+                       facecolor='white', edgecolor='none')
+            buffer.seek(0)
+            plt.close()
+            
+            return buffer
+            
+        except Exception as e:
+            plt.close()
+            print(f"Error creating enhanced categorical plot: {e}")
+            return None
+    
+    def create_categorical_target_analysis_for_ppt(self, df: pd.DataFrame, feature_col: str, target_col: str) -> io.BytesIO:
+        """Create categorical feature vs target analysis for PPT."""
+        try:
+            self._ensure_chinese_font()
+            
+            # Create cross-tabulation
+            crosstab = pd.crosstab(df[feature_col], df[target_col], normalize='index') * 100
+            
+            if crosstab.empty:
+                return None
+            
+            fig, ax = plt.subplots(figsize=(12, 8))
+            
+            # Only show top categories to avoid overcrowding
+            if len(crosstab.index) > 10:
+                # Get top 10 categories by total count
+                top_cats = df[feature_col].value_counts().head(10).index
+                crosstab = crosstab.loc[top_cats]
+            
+            # Create stacked bar plot
+            crosstab.plot(kind='barh', stacked=True, ax=ax, 
+                         colormap='Set3', alpha=0.8, figsize=(12, 8))
+            
+            ax.set_title(f'{feature_col} vs {target_col} - 分类交叉分析', fontsize=14, fontweight='bold')
+            ax.set_xlabel('百分比 (%)', fontsize=12)
+            ax.set_ylabel(feature_col, fontsize=12)
+            ax.legend(title=target_col, bbox_to_anchor=(1.05, 1), loc='upper left')
+            ax.grid(True, alpha=0.3, axis='x')
+            
+            plt.tight_layout()
+            
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', bbox_inches='tight', dpi=150,
+                       facecolor='white', edgecolor='none')
+            buffer.seek(0)
+            plt.close()
+            
+            return buffer
+            
+        except Exception as e:
+            plt.close()
+            print(f"Error creating categorical target analysis: {e}")
+            return None

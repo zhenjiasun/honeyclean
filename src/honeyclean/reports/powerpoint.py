@@ -34,6 +34,10 @@ class PowerPointGenerator:
         self._create_title_slide(prs, profiling_results)
         self._create_overview_slide(prs, profiling_results)
         
+        # Add data conversion results slide if available
+        if 'data_conversion' in profiling_results:
+            self._create_data_conversion_slide(prs, profiling_results)
+        
         # Add enhanced analysis slides
         if 'target_correlation' in profiling_results:
             self._create_target_correlation_slide(prs, profiling_results)
@@ -46,8 +50,8 @@ class PowerPointGenerator:
         
         # Create two slides per column: visualization + enhanced statistics
         for column_name, column_analysis in profiling_results['columns'].items():
-            # Slide 1: Original visualization with charts
-            self._create_column_slide(prs, column_name, column_analysis, df_original[column_name])
+            # Slide 1: Enhanced visualization with correlation plots and heatmaps
+            self._create_column_slide(prs, column_name, column_analysis, df_original, profiling_results)
             # Slide 2: Enhanced statistics with beautiful formatting
             self._create_column_statistics_slide(prs, column_name, column_analysis)
         
@@ -123,42 +127,76 @@ class PowerPointGenerator:
             error_frame.text = f"图表生成失败: {str(e)}"
     
     def _create_column_slide(self, prs: Presentation, column_name: str, 
-                           analysis: Dict[str, Any], series):
-        """Create individual column analysis slide."""
+                           analysis: Dict[str, Any], df_original, profiling_results: Dict[str, Any]):
+        """Create individual column analysis slide with enhanced visualizations."""
         slide_layout = prs.slide_layouts[6]  # Blank
         slide = prs.slides.add_slide(slide_layout)
         
         # Add title
         title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(0.8))
         title_frame = title_box.text_frame
-        title_frame.text = f"特征分析: {column_name}"
+        title_frame.text = f"特征分析: {column_name} (Enhanced Feature Analysis)"
         title_frame.paragraphs[0].font.size = Pt(24)
         title_frame.paragraphs[0].font.bold = True
         
-        # Handle different analysis types
+        series = df_original[column_name]
+        
+        # Handle different analysis types with enhanced visualizations
         if analysis.get('type') == 'numeric' and 'error' not in analysis:
             try:
-                # Create numeric plots
-                hist_buffer, percentile_buffer = self.viz_generator.create_numeric_plot_for_ppt(series, column_name)
+                # Create distribution plot (top left) and percentiles plot (top right)
+                hist_buffer, percentile_buffer = self.viz_generator.create_enhanced_numeric_plot_for_ppt(series, column_name)
                 
                 if hist_buffer:
-                    slide.shapes.add_picture(hist_buffer, Inches(0.5), Inches(1.2), Inches(6), Inches(3))
+                    slide.shapes.add_picture(hist_buffer, Inches(0.5), Inches(1.2), Inches(5.8), Inches(2.8))
                 
                 if percentile_buffer:
-                    slide.shapes.add_picture(percentile_buffer, Inches(6.8), Inches(1.2), Inches(6), Inches(3))
+                    slide.shapes.add_picture(percentile_buffer, Inches(6.7), Inches(1.2), Inches(5.8), Inches(2.8))
                 
-                # Add statistics text
-                stats_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(12), Inches(2.5))
-                stats_frame = stats_box.text_frame
-                stats_frame.word_wrap = True
+                # Create correlation plot with target (bottom left) if target exists
+                target_correlation_text = ""
+                if 'target_correlation' in profiling_results and self.config.target_col:
+                    target_cols = self.config.target_col if isinstance(self.config.target_col, list) else [self.config.target_col]
+                    
+                    for target_col in target_cols:
+                        if column_name != target_col and target_col in df_original.columns:
+                            try:
+                                corr_buffer = self.viz_generator.create_correlation_plot_for_ppt(
+                                    df_original, column_name, target_col)
+                                if corr_buffer:
+                                    slide.shapes.add_picture(corr_buffer, Inches(0.5), Inches(4.2), Inches(5.8), Inches(2.5))
+                                
+                                # Get correlation value for display
+                                if target_col in profiling_results['target_correlation'] and column_name in profiling_results['target_correlation'][target_col]['correlations']:
+                                    corr_val = profiling_results['target_correlation'][target_col]['correlations'][column_name]
+                                    target_correlation_text = f"与目标变量 {target_col} 的相关性: {corr_val:.4f}"
+                                break
+                            except Exception as e:
+                                # Add correlation error message
+                                corr_error_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.2), Inches(5.8), Inches(2.5))
+                                corr_error_frame = corr_error_box.text_frame
+                                corr_error_frame.text = f"相关性图表生成失败: {str(e)}"
+                                break
                 
-                stats_text = f"""统计信息:
-- 总数: {analysis.get('count', 0):,} | 缺失: {analysis.get('missing_count', 0):,} ({analysis.get('missing_percentage', 0):.1f}%)
-- 均值: {analysis.get('mean', 0):.2f} | 标准差: {analysis.get('std', 0):.2f}
-- 最小值: {analysis.get('min', 0):.2f} | 最大值: {analysis.get('max', 0):.2f}
-- 异常值 (Z-score): {analysis.get('zscore_outliers', 0)} | 偏度: {analysis.get('skewness', 0):.2f}"""
+                # Create heatmap showing top correlated features (bottom right)
+                try:
+                    heatmap_buffer = self.viz_generator.create_feature_correlation_heatmap_for_ppt(
+                        df_original, column_name, top_n=5)
+                    if heatmap_buffer:
+                        slide.shapes.add_picture(heatmap_buffer, Inches(6.7), Inches(4.2), Inches(5.8), Inches(2.5))
+                except Exception as e:
+                    # Add heatmap error message
+                    heatmap_error_box = slide.shapes.add_textbox(Inches(6.7), Inches(4.2), Inches(5.8), Inches(2.5))
+                    heatmap_error_frame = heatmap_error_box.text_frame
+                    heatmap_error_frame.text = f"特征相关性热图生成失败: {str(e)}"
                 
-                stats_frame.text = stats_text
+                # Add correlation info text at very bottom
+                if target_correlation_text:
+                    corr_info_box = slide.shapes.add_textbox(Inches(0.5), Inches(6.9), Inches(12), Inches(0.4))
+                    corr_info_frame = corr_info_box.text_frame
+                    corr_info_frame.text = target_correlation_text
+                    corr_info_frame.paragraphs[0].font.size = Pt(12)
+                    corr_info_frame.paragraphs[0].font.bold = True
                 
             except Exception as e:
                 # Add error message if plots fail
@@ -168,23 +206,29 @@ class PowerPointGenerator:
                 
         elif analysis.get('type') == 'categorical' and 'error' not in analysis:
             try:
-                # Create categorical plot
-                plot_buffer = self.viz_generator.create_categorical_plot_for_ppt(series, column_name)
-                
+                # Create categorical distribution plot (top)
+                plot_buffer = self.viz_generator.create_enhanced_categorical_plot_for_ppt(series, column_name)
                 if plot_buffer:
-                    slide.shapes.add_picture(plot_buffer, Inches(0.5), Inches(1.2), Inches(12), Inches(4))
+                    slide.shapes.add_picture(plot_buffer, Inches(0.5), Inches(1.2), Inches(12), Inches(3))
                 
-                # Add statistics text
-                stats_box = slide.shapes.add_textbox(Inches(0.5), Inches(5.5), Inches(12), Inches(1.5))
-                stats_frame = stats_box.text_frame
-                stats_frame.word_wrap = True
-                
-                stats_text = f"""统计信息:
-- 总数: {analysis.get('count', 0):,} | 缺失: {analysis.get('missing_count', 0):,} ({analysis.get('missing_percentage', 0):.1f}%)
-- 唯一值: {analysis.get('unique_count', 0)} | 基数比: {analysis.get('cardinality', 0):.3f}
-- 最频繁值: {analysis.get('mode', 'N/A')} | 高基数: {'是' if analysis.get('is_high_cardinality', False) else '否'}"""
-                
-                stats_frame.text = stats_text
+                # Create categorical correlation analysis (bottom) if target exists
+                if self.config.target_col:
+                    target_cols = self.config.target_col if isinstance(self.config.target_col, list) else [self.config.target_col]
+                    
+                    for target_col in target_cols:
+                        if target_col in df_original.columns:
+                            try:
+                                cat_analysis_buffer = self.viz_generator.create_categorical_target_analysis_for_ppt(
+                                    df_original, column_name, target_col)
+                                if cat_analysis_buffer:
+                                    slide.shapes.add_picture(cat_analysis_buffer, Inches(0.5), Inches(4.5), Inches(12), Inches(2.2))
+                                break
+                            except Exception as e:
+                                # Add categorical analysis error message
+                                cat_error_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(12), Inches(2.2))
+                                cat_error_frame = cat_error_box.text_frame
+                                cat_error_frame.text = f"分类变量目标分析失败: {str(e)}"
+                                break
                 
             except Exception as e:
                 # Add error message if plots fail
@@ -201,16 +245,6 @@ class PowerPointGenerator:
 
 {analysis.get('error', '该变量类型暂不支持详细分析')}"""
             error_frame.text = error_text
-        
-        # Add recommendations
-        if analysis.get('recommendations'):
-            rec_box = slide.shapes.add_textbox(Inches(0.5), Inches(6.5), Inches(12), Inches(1))
-            rec_frame = rec_box.text_frame
-            rec_frame.word_wrap = True
-            
-            recommendations_text = "清洗建议:\n" + "\n".join([f"• {rec}" for rec in analysis['recommendations'][:3]])  # Show top 3
-            rec_frame.text = recommendations_text
-            rec_frame.paragraphs[0].font.bold = True
     
     def _create_recommendations_slide(self, prs: Presentation, results: Dict[str, Any]):
         """Create general recommendations slide."""
@@ -813,3 +847,114 @@ Shapiro-Wilk p值: {analysis.get('shapiro_p_value', 0):.6f}
             rec_frame.paragraphs[0].font.bold = True
             for i in range(1, len(rec_frame.paragraphs)):
                 rec_frame.paragraphs[i].font.size = Pt(11)
+    
+    def _create_data_conversion_slide(self, prs: Presentation, results: Dict[str, Any]):
+        """Create data type conversion analysis slide with beautiful table UI."""
+        slide_layout = prs.slide_layouts[6]  # Blank layout for custom design
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Add title
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(0.8))
+        title_frame = title_box.text_frame
+        title_frame.text = "🔄 数据类型转换分析 (Data Type Conversion Analysis)"
+        title_frame.paragraphs[0].font.size = Pt(24)
+        title_frame.paragraphs[0].font.bold = True
+        title_frame.paragraphs[0].font.color.rgb = RGBColor(0, 51, 102)
+        
+        # Get conversion data
+        conversion_data = results.get('data_conversion', {})
+        conversion_report = conversion_data.get('conversion_report', {})
+        conversion_analysis = conversion_data.get('conversion_analysis', {})
+        
+        # Statistics summary box (top section)
+        convertible_count = len(conversion_report.get('convertible_columns', []))
+        partially_convertible_count = len(conversion_report.get('partially_convertible_columns', {}))
+        unconvertible_count = len(conversion_report.get('unconvertible_columns', []))
+        already_float_count = len(conversion_report.get('already_float_columns', []))
+        total_columns = conversion_analysis.get('total_columns', 0)
+        success_rate = conversion_analysis.get('conversion_success_rate', 0)
+        
+        # Create beautiful stats boxes (top row)
+        stats_boxes = [
+            ("完全可转换", convertible_count, "🟢", RGBColor(34, 139, 34)),
+            ("部分可转换", partially_convertible_count, "🟡", RGBColor(255, 165, 0)),
+            ("无法转换", unconvertible_count, "🔴", RGBColor(220, 20, 60)),
+            ("已为数值型", already_float_count, "✅", RGBColor(70, 130, 180))
+        ]
+        
+        box_width = 2.8
+        box_height = 1.2
+        start_x = 0.7
+        
+        for i, (label, count, emoji, color) in enumerate(stats_boxes):
+            x_pos = start_x + i * (box_width + 0.2)
+            
+            # Create colored background box
+            stats_box = slide.shapes.add_textbox(Inches(x_pos), Inches(1.3), Inches(box_width), Inches(box_height))
+            stats_frame = stats_box.text_frame
+            stats_frame.text = f"{emoji} {label}\n{count} 列"
+            
+            # Style the box
+            stats_frame.paragraphs[0].font.size = Pt(14)
+            stats_frame.paragraphs[0].font.bold = True
+            stats_frame.paragraphs[0].font.color.rgb = color
+            stats_frame.paragraphs[0].alignment = 1  # Center alignment
+            
+            # Add border effect
+            stats_box.fill.solid()
+            stats_box.fill.fore_color.rgb = RGBColor(248, 248, 248)
+            stats_box.line.color.rgb = color
+            stats_box.line.width = Pt(2)
+        
+        # Success rate box (center)
+        success_box = slide.shapes.add_textbox(Inches(4), Inches(2.8), Inches(4.5), Inches(1))
+        success_frame = success_box.text_frame
+        success_frame.text = f"🎯 整体转换成功率: {success_rate:.1%}\n({convertible_count + partially_convertible_count}/{total_columns} 列可转换)"
+        success_frame.paragraphs[0].font.size = Pt(16)
+        success_frame.paragraphs[0].font.bold = True
+        success_frame.paragraphs[0].font.color.rgb = RGBColor(0, 102, 204)
+        success_frame.paragraphs[0].alignment = 1  # Center
+        
+        # Convertible columns list (left side)
+        if conversion_report.get('convertible_columns'):
+            conv_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.2), Inches(5.8), Inches(2.8))
+            conv_frame = conv_box.text_frame
+            conv_frame.word_wrap = True
+            
+            conv_text = "🟢 完全可转换列 (Fully Convertible):\n\n"
+            cols = conversion_report['convertible_columns'][:8]  # Show first 8
+            for col in cols:
+                conv_text += f"• {col}\n"
+            if len(conversion_report['convertible_columns']) > 8:
+                conv_text += f"... 及其他 {len(conversion_report['convertible_columns']) - 8} 列"
+            
+            conv_frame.text = conv_text
+            conv_frame.paragraphs[0].font.size = Pt(14)
+            conv_frame.paragraphs[0].font.bold = True
+            conv_frame.paragraphs[0].font.color.rgb = RGBColor(34, 139, 34)
+            
+            # Style list items
+            for i in range(1, len(conv_frame.paragraphs)):
+                conv_frame.paragraphs[i].font.size = Pt(11)
+                conv_frame.paragraphs[i].font.color.rgb = RGBColor(60, 60, 60)
+        
+        # Recommendations box (right side)
+        recommendations = conversion_analysis.get('recommendations', [])
+        if recommendations:
+            rec_box = slide.shapes.add_textbox(Inches(6.7), Inches(4.2), Inches(5.8), Inches(2.8))
+            rec_frame = rec_box.text_frame
+            rec_frame.word_wrap = True
+            
+            rec_text = "💡 建议 (Recommendations):\n\n"
+            for i, rec in enumerate(recommendations[:4], 1):
+                rec_text += f"{i}. {rec}\n"
+            
+            rec_frame.text = rec_text
+            rec_frame.paragraphs[0].font.size = Pt(14)
+            rec_frame.paragraphs[0].font.bold = True
+            rec_frame.paragraphs[0].font.color.rgb = RGBColor(255, 140, 0)
+            
+            # Style list items
+            for i in range(1, len(rec_frame.paragraphs)):
+                rec_frame.paragraphs[i].font.size = Pt(11)
+                rec_frame.paragraphs[i].font.color.rgb = RGBColor(60, 60, 60)

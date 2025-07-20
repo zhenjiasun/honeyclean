@@ -15,6 +15,7 @@ from .analyzers.statistical import StatisticalAnalyzer
 from .analyzers.type_inference import DataTypeInference
 from .analyzers.recommendations import DataCleaningRecommendations
 from .analyzers.enhanced import EnhancedAnalyzer
+from .analyzers.data_conversion import DataTypeConverter
 from .visualizations.generators import VisualizationGenerator
 from .reports.powerpoint import PowerPointGenerator
 from .utils.formatters import StatisticalFormatter
@@ -44,38 +45,51 @@ class AutomatedDataProfiler:
             df = data.copy()
             dataset_name = dataset_name or "dataset"
         
+        # Perform data type conversion analysis (analysis only, no actual conversion)
+        logger.info("Analyzing data type conversion opportunities...")
+        _, conversion_report = DataTypeConverter.find_and_convert_float_columns(df)
+        conversion_analysis = DataTypeConverter.analyze_conversion_results(conversion_report)
+        
+        # Use the original dataframe for analysis (no conversion applied)
+        df_for_analysis = df
+        
         # Generate comprehensive profile
         profiling_results = {
-            'dataset_info': self._analyze_dataset_info(df, dataset_name),
+            'dataset_info': self._analyze_dataset_info(df_for_analysis, dataset_name),
+            'data_conversion': {
+                'conversion_report': conversion_report,
+                'conversion_analysis': conversion_analysis,
+                'converted_dataframe_used': False
+            },
             'columns': {},
-            'general_recommendations': DataCleaningRecommendations.get_general_recommendations(df)
+            'general_recommendations': DataCleaningRecommendations.get_general_recommendations(df_for_analysis)
         }
         
         # Enhanced analysis based on configuration
         if self.config.target_col:
             logger.info("Performing target correlation analysis...")
-            profiling_results['target_correlation'] = EnhancedAnalyzer.analyze_target_correlation(df, self.config.target_col)
-            profiling_results['target_distribution'] = EnhancedAnalyzer.analyze_target_distribution(df, self.config.target_col)
+            profiling_results['target_correlation'] = EnhancedAnalyzer.analyze_target_correlation(df_for_analysis, self.config.target_col)
+            profiling_results['target_distribution'] = EnhancedAnalyzer.analyze_target_distribution(df_for_analysis, self.config.target_col)
             
             # Categorical by target analysis for categorical targets
             target_cols = self.config.target_col if isinstance(self.config.target_col, list) else [self.config.target_col]
             for target_col in target_cols:
-                if target_col in df.columns and not pd.api.types.is_numeric_dtype(df[target_col]):
-                    profiling_results[f'categorical_by_{target_col}'] = EnhancedAnalyzer.analyze_categorical_by_target(df, target_col)
+                if target_col in df_for_analysis.columns and not pd.api.types.is_numeric_dtype(df_for_analysis[target_col]):
+                    profiling_results[f'categorical_by_{target_col}'] = EnhancedAnalyzer.analyze_categorical_by_target(df_for_analysis, target_col)
         
         if self.config.id_cols:
             logger.info("Performing ID uniqueness analysis...")
-            profiling_results['id_uniqueness'] = EnhancedAnalyzer.check_id_uniqueness(df, self.config.id_cols)
+            profiling_results['id_uniqueness'] = EnhancedAnalyzer.check_id_uniqueness(df_for_analysis, self.config.id_cols)
             
             # Check composite ID if multiple ID columns
             if len(self.config.id_cols) > 1:
-                profiling_results['composite_id_uniqueness'] = EnhancedAnalyzer.check_composite_id_uniqueness(df, self.config.id_cols)
+                profiling_results['composite_id_uniqueness'] = EnhancedAnalyzer.check_composite_id_uniqueness(df_for_analysis, self.config.id_cols)
         
         # Analyze each column
         logger.info("Analyzing individual columns...")
-        for column in df.columns:
+        for column in df_for_analysis.columns:
             logger.debug(f"Analyzing column: {column}")
-            column_analysis = self._analyze_column(df[column], column)
+            column_analysis = self._analyze_column(df_for_analysis[column], column)
             profiling_results['columns'][column] = column_analysis
         
         # Generate reports (no more intermediate visualizations)
