@@ -306,11 +306,18 @@ def info(ctx):
 @click.option('--id-cols', '-i', multiple=True, help='ID columns for uniqueness checking')
 @click.option('--sample', '-s', type=int, default=None,
               help='Sample size for large datasets')
+@click.option('--console', is_flag=True, default=False,
+              help='Display statistics in console (default: embedded in reports only)')
+@click.option('--output', '-o', default=None,
+              help='Output directory for reports')
 @click.pass_context
 def stats(ctx, input_file: Optional[str], target_col: Optional[str], 
-          id_cols: tuple, sample: Optional[int]):
+          id_cols: tuple, sample: Optional[int], console: bool, output: Optional[str]):
     """
-    Display formatted statistical analysis with enhanced tables.
+    Enhanced statistical analysis with bilingual formatting.
+    
+    By default, statistics are embedded in generated reports.
+    Use --console flag to also display in terminal.
     
     INPUT_FILE: Path to the CSV file to analyze (optional if set in config)
     """
@@ -321,6 +328,9 @@ def stats(ctx, input_file: Optional[str], target_col: Optional[str],
         config.target_col = target_col
     if id_cols:
         config.id_cols = list(id_cols)
+    if output:
+        config.output_reports = output
+        config.create_directories()
     
     try:
         # Determine input file
@@ -352,9 +362,15 @@ def stats(ctx, input_file: Optional[str], target_col: Optional[str],
             results = profiler.profile_dataset(df, Path(data_file).stem)
             bar.update(100)
         
-        # Display formatted results
-        formatted_output = profiler.display_formatted_results(results['profiling_results'])
-        click.echo("\n" + formatted_output)
+        # Display formatted results based on console flag
+        if console:
+            formatted_output = profiler.display_formatted_results(results['profiling_results'])
+            click.echo("\n" + formatted_output)
+        else:
+            click.echo("\n💡 Detailed bilingual statistics have been embedded in the generated reports")
+            click.echo(f"📁 Reports saved to: {config.output_reports}")
+            for report_type, report_path in results['report_paths'].items():
+                click.echo(f"  • {report_type.upper()}: {report_path}")
         
     except Exception as e:
         click.echo(f"Error during analysis: {e}", err=True)
@@ -430,13 +446,9 @@ def run(ctx, input_file: Optional[str], output: Optional[str],
             results = profiler.profile_dataset(df, Path(data_file).stem)
             bar.update(100)
         
-        # Display formatted statistical results
+        # Note: Statistical results are now embedded in reports instead of console output
         if show_stats:
-            click.echo("\n" + "="*60)
-            click.echo("📊 DETAILED STATISTICAL ANALYSIS")
-            click.echo("="*60)
-            formatted_output = profiler.display_formatted_results(results['profiling_results'])
-            click.echo(formatted_output)
+            click.echo("\n💡 Detailed bilingual statistics have been embedded in the generated reports")
         
         # Display summary
         click.echo("\n" + "="*50)

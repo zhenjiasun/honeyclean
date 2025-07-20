@@ -8,6 +8,7 @@ import logging
 import json
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
+from datetime import datetime
 
 from .config import HoneyCleanConfig
 from .analyzers.statistical import StatisticalAnalyzer
@@ -145,6 +146,73 @@ class AutomatedDataProfiler:
         
         return "\n".join(output)
     
+    def _create_enhanced_json_report(self, profiling_results: Dict[str, Any]) -> Dict[str, Any]:
+        """Create enhanced JSON report with formatted statistics."""
+        enhanced_results = profiling_results.copy()
+        
+        # Add formatted statistics for each column
+        enhanced_results['formatted_statistics'] = {}
+        
+        for column_name, analysis in profiling_results.get('columns', {}).items():
+            data_type = analysis.get('type', 'unknown')
+            formatted_stats = ""
+            
+            if data_type == 'numeric':
+                formatted_stats = StatisticalFormatter.format_numeric_stats(analysis)
+            elif data_type == 'categorical':
+                formatted_stats = StatisticalFormatter.format_categorical_stats(analysis)
+            elif data_type == 'datetime':
+                formatted_stats = StatisticalFormatter.format_datetime_stats(analysis)
+            
+            enhanced_results['formatted_statistics'][column_name] = {
+                'type': data_type,
+                'formatted_output': formatted_stats,
+                'raw_analysis': analysis
+            }
+        
+        # Add formatted enhanced analysis sections
+        if 'target_correlation' in profiling_results:
+            enhanced_results['formatted_target_analysis'] = {}
+            for target_col, correlations in profiling_results['target_correlation'].items():
+                correlation_formatted = StatisticalFormatter.format_correlation_analysis(
+                    correlations['correlations'], target_col)
+                enhanced_results['formatted_target_analysis'][target_col] = {
+                    'formatted_correlations': correlation_formatted,
+                    'raw_correlations': correlations
+                }
+        
+        if 'target_distribution' in profiling_results:
+            enhanced_results['formatted_target_distribution'] = {}
+            for target_col, target_stats in profiling_results['target_distribution'].items():
+                distribution_formatted = StatisticalFormatter.format_target_distribution(
+                    target_stats, target_col)
+                enhanced_results['formatted_target_distribution'][target_col] = {
+                    'formatted_distribution': distribution_formatted,
+                    'raw_distribution': target_stats
+                }
+        
+        if 'id_uniqueness' in profiling_results:
+            id_formatted = StatisticalFormatter.format_id_uniqueness_check(
+                profiling_results['id_uniqueness'])
+            enhanced_results['formatted_id_analysis'] = {
+                'formatted_uniqueness': id_formatted,
+                'raw_uniqueness': profiling_results['id_uniqueness']
+            }
+        
+        # Add generation metadata
+        enhanced_results['report_metadata'] = {
+            'generation_time': datetime.now().isoformat(),
+            'honeyclean_version': '1.0.0',
+            'enhanced_features': {
+                'bilingual_statistics': True,
+                'target_analysis': 'target_correlation' in profiling_results,
+                'id_validation': 'id_uniqueness' in profiling_results,
+                'formatted_output': True
+            }
+        }
+        
+        return enhanced_results
+    
     def _analyze_dataset_info(self, df: pd.DataFrame, name: str) -> Dict[str, Any]:
         """Analyze general dataset information."""
         memory_usage = df.memory_usage(deep=True).sum() / 1024 / 1024
@@ -215,11 +283,12 @@ class AutomatedDataProfiler:
                 profiling_results, df)
             report_paths['powerpoint'] = ppt_path
         
-        # JSON report
+        # Enhanced JSON report with formatted statistics
         if self.config.generate_json:
+            enhanced_results = self._create_enhanced_json_report(profiling_results)
             json_path = f"{self.config.output_reports}/profiling_results.json"
-            with open(json_path, 'w') as f:
-                json.dump(profiling_results, f, indent=2, default=str)
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(enhanced_results, f, indent=2, default=str, ensure_ascii=False)
             report_paths['json'] = json_path
         
         # CSV summary

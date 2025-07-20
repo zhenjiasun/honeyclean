@@ -187,11 +187,12 @@ honeyclean profile --sample 5000   # Sample large datasets
 ```
 
 ### `honeyclean stats`
-Enhanced statistical analysis display (增强统计分析显示)
+Enhanced statistical analysis with embedded reports (增强统计分析和嵌入式报告)
 ```bash
-honeyclean stats                   # Uses config file
-honeyclean stats data.csv          # Override input file  
-honeyclean stats --target-col revenue --id-cols user_id
+honeyclean stats                   # Generate reports with embedded stats
+honeyclean stats --console         # Also display stats in terminal
+honeyclean stats data.csv --target-col revenue --id-cols user_id
+honeyclean stats --output ./reports # Custom output directory
 ```
 
 ### `honeyclean analyze`
@@ -279,10 +280,18 @@ honeyclean info
 ```
 
 ### Report Files Generated (生成的报告文件)
-- **PowerPoint Report**: Professional presentation with charts and analysis
-- **JSON Report**: Complete machine-readable results
+- **PowerPoint Report**: Professional presentation with embedded bilingual statistics, target analysis, and ID validation
+- **JSON Report**: Complete machine-readable results with formatted statistics sections
 - **CSV Summary**: Quick overview table
 - **Log File**: Detailed processing information
+
+### Enhanced Report Content (增强报告内容)
+**All reports now include (所有报告现在包括):**
+- 📊 **Bilingual Statistics**: English/Chinese labels in all statistical tables
+- 🎯 **Target Analysis**: Correlation analysis and distribution insights (if configured)
+- 🆔 **ID Validation**: Uniqueness checking and duplicate detection (if configured)
+- 💡 **Enhanced Recommendations**: Comprehensive data cleaning suggestions
+- 📈 **Professional Formatting**: Clean, readable presentation suitable for stakeholders
 
 ## 🔬 Advanced Features (高级功能)
 
@@ -349,8 +358,12 @@ honeyclean init
 # 3. Run complete analysis (运行完整分析)
 honeyclean run
 
-# That's it! All analysis, stats, and reports are generated
-# 完成！所有分析、统计和报告都已生成
+# That's it! All analysis, stats, and reports are generated with:
+# 完成！所有分析、统计和报告都已生成，包含：
+# ✅ Bilingual statistical tables embedded in reports
+# ✅ Target correlation analysis (if configured)
+# ✅ ID uniqueness validation (if configured)  
+# ✅ Professional PowerPoint and JSON reports
 ```
 
 ### Advanced Workflow (高级工作流程)
