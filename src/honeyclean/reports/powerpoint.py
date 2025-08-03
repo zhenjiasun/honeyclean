@@ -9,6 +9,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 import io
+import pandas as pd
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 from ..config import HoneyCleanConfig
 from ..visualizations.generators import VisualizationGenerator
@@ -274,60 +279,60 @@ class PowerPointGenerator:
     
     def _create_target_correlation_slide(self, prs: Presentation, results: Dict[str, Any]):
         """Create target correlation analysis slide."""
-    slide_layout = prs.slide_layouts[6]  # 使用空白布局
-    slide = prs.slides.add_slide(slide_layout)
-    
-    # 添加标题
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.8))
-    title_frame = title_box.text_frame
-    title_frame.text = "目标变量相关性分析 (Target Correlation Analysis)"
-    title_frame.paragraphs[0].font.size = Pt(24)
-    title_frame.paragraphs[0].font.bold = True
-    
-    for target_col, correlations in results['target_correlation'].items():
-        # 过滤掉nan值并排序
-        valid_correlations = {k: v for k, v in correlations['correlations'].items() 
-                            if not pd.isna(v) and k != target_col}
+        slide_layout = prs.slide_layouts[6]  # 使用空白布局
+        slide = prs.slides.add_slide(slide_layout)
         
-        sorted_corrs = sorted(valid_correlations.items(), 
-                            key=lambda x: abs(x[1]), reverse=True)
+        # 添加标题
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.8))
+        title_frame = title_box.text_frame
+        title_frame.text = "目标变量相关性分析 (Target Correlation Analysis)"
+        title_frame.paragraphs[0].font.size = Pt(24)
+        title_frame.paragraphs[0].font.bold = True
         
-        # 获取前20和后20
-        top_20 = sorted_corrs[:20]
-        bottom_20 = sorted_corrs[-20:] if len(sorted_corrs) > 20 else []
-        
-        # 左侧 - 前20个最强相关性
-        left_content = f"🎯 目标变量: {target_col}\n\n前20个最强相关特征:\n"
-        for col, corr_val in top_20:
-            strength = StatisticalFormatter._interpret_correlation(abs(corr_val))
-            left_content += f"• {col}: {corr_val:.4f} ({strength})\n"
-        
-        left_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(5.5), Inches(6))
-        left_frame = left_box.text_frame
-        left_frame.word_wrap = True
-        left_frame.text = left_content
-        
-        # 右侧 - 后20个最弱相关性
-        if bottom_20:
-            right_content = f"\n后20个最弱相关特征:\n"
-            for col, corr_val in bottom_20:
+        for target_col, correlations in results['target_correlation'].items():
+            # 过滤掉nan值并排序
+            valid_correlations = {k: v for k, v in correlations['correlations'].items() 
+                                if not pd.isna(v) and k != target_col}
+            
+            sorted_corrs = sorted(valid_correlations.items(), 
+                                key=lambda x: abs(x[1]), reverse=True)
+            
+            # 获取前20和后20
+            top_20 = sorted_corrs[:20]
+            bottom_20 = sorted_corrs[-20:] if len(sorted_corrs) > 20 else []
+            
+            # 左侧 - 前20个最强相关性
+            left_content = f"🎯 目标变量: {target_col}\n\n前20个最强相关特征:\n"
+            for col, corr_val in top_20:
                 strength = StatisticalFormatter._interpret_correlation(abs(corr_val))
-                right_content += f"• {col}: {corr_val:.4f} ({strength})\n"
-        else:
-            right_content = "\n总特征数少于40个，\n无需显示最弱相关特征"
-        
-        right_box = slide.shapes.add_textbox(Inches(6.5), Inches(1.2), Inches(5.5), Inches(6))
-        right_frame = right_box.text_frame
-        right_frame.word_wrap = True
-        right_frame.text = right_content
-        
-        # 设置字体样式
-        for frame in [left_frame, right_frame]:
-            for paragraph in frame.paragraphs:
-                paragraph.font.size = Pt(11)
-                if "🎯" in paragraph.text or "前20个" in paragraph.text or "后20个" in paragraph.text:
-                    paragraph.font.bold = True
-                    paragraph.font.size = Pt(13)
+                left_content += f"• {col}: {corr_val:.4f} ({strength})\n"
+            
+            left_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(5.5), Inches(6))
+            left_frame = left_box.text_frame
+            left_frame.word_wrap = True
+            left_frame.text = left_content
+            
+            # 右侧 - 后20个最弱相关性
+            if bottom_20:
+                right_content = f"\n后20个最弱相关特征:\n"
+                for col, corr_val in bottom_20:
+                    strength = StatisticalFormatter._interpret_correlation(abs(corr_val))
+                    right_content += f"• {col}: {corr_val:.4f} ({strength})\n"
+            else:
+                right_content = "\n总特征数少于40个，\n无需显示最弱相关特征"
+            
+            right_box = slide.shapes.add_textbox(Inches(6.5), Inches(1.2), Inches(5.5), Inches(6))
+            right_frame = right_box.text_frame
+            right_frame.word_wrap = True
+            right_frame.text = right_content
+            
+            # 设置字体样式
+            for frame in [left_frame, right_frame]:
+                for paragraph in frame.paragraphs:
+                    paragraph.font.size = Pt(11)
+                    if "🎯" in paragraph.text or "前20个" in paragraph.text or "后20个" in paragraph.text:
+                        paragraph.font.bold = True
+                        paragraph.font.size = Pt(13)
     
     def _create_target_distribution_slide(self, prs: Presentation, results: Dict[str, Any]):
         """Create target distribution analysis slide."""

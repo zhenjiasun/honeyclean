@@ -437,68 +437,62 @@ class VisualizationGenerator:
             return None
     
     def create_categorical_target_analysis_for_ppt(self, df: pd.DataFrame, feature_col: str, target_col: str) -> io.BytesIO:
-        """Create categorical feature vs target analysis for PPT."""
+        """
+        Create a boxplot for target distribution across top 10 categories of a categorical feature.
+        Suitable when the target_col is numeric.
+        """
         try:
             self._ensure_chinese_font()
-            
-            # 首先获取前10个最常见的类别
+
+            # 获取前10个最多的类别
             top_categories = df[feature_col].value_counts().head(10).index.tolist()
-        
-            # 过滤数据，只保留前10个类别
             df_filtered = df[df[feature_col].isin(top_categories)].copy()
 
-            # Create cross-tabulation
-            crosstab = pd.crosstab(df_filtered[feature_col], df_filtered[target_col], normalize='index') * 100
-            
-            # 确保按照原始频率顺序排列
-            crosstab = crosstab.reindex(top_categories)
-            
-            if crosstab.empty:
+            # 如果数据为空或 target 不是数值型，直接返回
+            if df_filtered.empty or not pd.api.types.is_numeric_dtype(df_filtered[target_col]):
                 return None
+
+            # 设置画图风格
+            # sns.set(style="whitegrid")
+
+            fig, ax = plt.subplots(figsize=(16, 8))
             
-            # 增加图片尺寸和DPI以提高清晰度
-            fig, ax = plt.subplots(figsize=(16, 8))  # 增加高度以适应更好的显示
+            self._ensure_chinese_font()
             
-            # Create stacked bar plot with better styling
-            crosstab.plot(kind='barh', stacked=True, ax=ax, 
-                        colormap='Set3', alpha=0.9, width=0.7)
-            
-            # 优化标题和标签字体大小
-            ax.set_title(f'{feature_col} vs {target_col} - 分类交叉分析 (前10个类别)', 
-                        fontsize=18, fontweight='bold', pad=20)
-            ax.set_xlabel('百分比 (%)', fontsize=14, fontweight='bold')
+            # 画出箱型图
+            sns.boxplot(
+                data=df_filtered,
+                x=target_col,
+                y=feature_col,
+                order=top_categories,
+                palette="Set3",
+                linewidth=1.5,
+                fliersize=2,  # 控制离群点大小
+                ax=ax
+            )
+
+            # 添加标题和标签
+            ax.set_title(f'{feature_col} 下的 {target_col} 分布（Top 10 类别）', fontsize=18, fontweight='bold', pad=20)
+            ax.set_xlabel(target_col, fontsize=14, fontweight='bold')
             ax.set_ylabel(feature_col, fontsize=14, fontweight='bold')
-            
-            # 优化图例
-            ax.legend(title=target_col, bbox_to_anchor=(1.02, 1), loc='upper left',
-                    fontsize=12, title_fontsize=13)
-            
-            # 优化网格和刻度
-            ax.grid(True, alpha=0.4, axis='x', linestyle='--')
+
+
+
+            # 优化刻度
             ax.tick_params(axis='both', which='major', labelsize=12)
-            
-            # 限制Y轴标签长度，避免过长
-            y_labels = [str(label)[:20] + '...' if len(str(label)) > 20 else str(label) 
-                    for label in ax.get_yticklabels()]
-            ax.set_yticklabels(y_labels)
-            
-            # 添加数值标签（只在较大的区块上显示）
-            for container in ax.containers:
-                ax.bar_label(container, 
-                            labels=[f'{v:.1f}%' if v > 8 else '' for v in container.datavalues], 
-                            label_type='center', fontsize=10, fontweight='bold', color='white')
-            
+
             plt.tight_layout()
-            
+
+            # 保存为 PNG 并返回 buffer
             buffer = io.BytesIO()
             plt.savefig(buffer, format='png', bbox_inches='tight', dpi=300,
-                    facecolor='white', edgecolor='none', pad_inches=0.1)
+                        facecolor='white', edgecolor='none', pad_inches=0.1)
             buffer.seek(0)
             plt.close()
-            
+
             return buffer
-            
+
         except Exception as e:
             plt.close()
-            print(f"Error creating categorical target analysis: {e}")
+            print(f"Error creating boxplot: {e}")
             return None
