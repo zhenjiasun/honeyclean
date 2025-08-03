@@ -385,10 +385,10 @@ class VisualizationGenerator:
         try:
             self._ensure_chinese_font()
             
-            fig, ax = plt.subplots(figsize=(14, 8))
+            fig, ax = plt.subplots(figsize=(12, 8))
             
             # Get top categories
-            top_categories = series.value_counts().head(15)
+            top_categories = series.value_counts().head(10)
             
             if len(top_categories) == 0:
                 return None
@@ -455,7 +455,7 @@ class VisualizationGenerator:
             # 设置画图风格
             # sns.set(style="whitegrid")
 
-            fig, ax = plt.subplots(figsize=(16, 8))
+            fig, ax = plt.subplots(figsize=(12, 8))
             
             self._ensure_chinese_font()
             
@@ -471,12 +471,12 @@ class VisualizationGenerator:
                 ax=ax
             )
 
+            actual_top_n = len(top_categories)
+
             # 添加标题和标签
-            ax.set_title(f'{feature_col} 下的 {target_col} 分布（Top 10 类别）', fontsize=18, fontweight='bold', pad=20)
+            ax.set_title(f'{feature_col} 下的 {target_col} 分布（Top {actual_top_n} 类别）', fontsize=18, fontweight='bold', pad=20)
             ax.set_xlabel(target_col, fontsize=14, fontweight='bold')
             ax.set_ylabel(feature_col, fontsize=14, fontweight='bold')
-
-
 
             # 优化刻度
             ax.tick_params(axis='both', which='major', labelsize=12)

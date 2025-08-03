@@ -455,14 +455,18 @@ class PowerPointGenerator:
     
     def _create_enhanced_recommendations_slide(self, prs: Presentation, results: Dict[str, Any]):
         """Create enhanced recommendations slide with comprehensive suggestions."""
-        slide_layout = prs.slide_layouts[1]
+        slide_layout = prs.slide_layouts[6]  # 使用空白布局
         slide = prs.slides.add_slide(slide_layout)
-        
-        title = slide.shapes.title
-        title.text = "综合数据清洗建议 (Comprehensive Cleaning Recommendations)"
-        
+
+        # 添加标题框（手动）
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(0.8))
+        title_frame = title_box.text_frame
+        title_frame.text = "综合数据清洗建议 (Comprehensive Cleaning Recommendations)"
+        title_frame.paragraphs[0].font.size = Pt(20)
+        title_frame.paragraphs[0].font.bold = True
+
         recommendations_content = ""
-        
+
         # General recommendations
         general_recs = results.get('general_recommendations', [])
         if general_recs:
@@ -470,27 +474,27 @@ class PowerPointGenerator:
             for i, rec in enumerate(general_recs, 1):
                 recommendations_content += f"{i}. {rec}\n"
             recommendations_content += "\n"
-        
+
         # Target-specific recommendations
         if 'target_correlation' in results:
             recommendations_content += "🎯 目标变量建议 (Target Analysis Recommendations):\n"
             recommendations_content += "• 重点关注高相关性特征进行特征工程\n"
             recommendations_content += "• 检查相关性异常值和潜在数据泄露\n"
             recommendations_content += "• 考虑特征选择以避免多重共线性\n\n"
-        
-        # ID-specific recommendations  
+
+        # ID-specific recommendations
         if 'id_uniqueness' in results:
             id_issues = []
             for col, stats in results['id_uniqueness'].items():
                 if stats.get('duplicate_count', 0) > 0:
                     id_issues.append(col)
-            
+
             if id_issues:
                 recommendations_content += "🆔 ID列建议 (ID Column Recommendations):\n"
                 for col in id_issues:
                     recommendations_content += f"• {col}: 存在重复值，需要数据去重或验证\n"
                 recommendations_content += "\n"
-        
+
         # Column-specific priority recommendations
         high_priority_issues = []
         for col_name, analysis in results.get('columns', {}).items():
@@ -499,24 +503,25 @@ class PowerPointGenerator:
                 high_priority_issues.append(f"{col_name}: 缺失值过高 ({missing_pct:.1f}%)")
             elif analysis.get('zscore_outliers', 0) > analysis.get('count', 0) * 0.1:
                 high_priority_issues.append(f"{col_name}: 异常值较多")
-        
+
         if high_priority_issues:
             recommendations_content += "⚠️ 优先处理问题 (Priority Issues):\n"
-            for issue in high_priority_issues[:8]:
+            for issue in high_priority_issues[:20]:
                 recommendations_content += f"• {issue}\n"
-        
-        # Add text box
-        content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(12), Inches(5.5))
+
+        # 添加内容框
+        content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(12), Inches(6))
         content_frame = content_box.text_frame
         content_frame.word_wrap = True
         content_frame.text = recommendations_content if recommendations_content else "数据集状况良好，无特殊清洗建议。"
-        
-        # Style the text
+
+        # 设置样式
         for paragraph in content_frame.paragraphs:
             paragraph.font.size = Pt(11)
             if any(emoji in paragraph.text for emoji in ["🔧", "🎯", "🆔", "⚠️"]):
                 paragraph.font.bold = True
                 paragraph.font.size = Pt(13)
+
     
     def _convert_table_to_text(self, formatted_stats: str) -> str:
         """Convert tabulated statistics to presentation-friendly text."""
