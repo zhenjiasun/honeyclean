@@ -441,35 +441,58 @@ class VisualizationGenerator:
         try:
             self._ensure_chinese_font()
             
+            # 首先获取前10个最常见的类别
+            top_categories = df[feature_col].value_counts().head(10).index.tolist()
+        
+            # 过滤数据，只保留前10个类别
+            df_filtered = df[df[feature_col].isin(top_categories)].copy()
+
             # Create cross-tabulation
-            crosstab = pd.crosstab(df[feature_col], df[target_col], normalize='index') * 100
+            crosstab = pd.crosstab(df_filtered[feature_col], df_filtered[target_col], normalize='index') * 100
+            
+            # 确保按照原始频率顺序排列
+            crosstab = crosstab.reindex(top_categories)
             
             if crosstab.empty:
                 return None
             
-            fig, ax = plt.subplots(figsize=(12, 8))
+            # 增加图片尺寸和DPI以提高清晰度
+            fig, ax = plt.subplots(figsize=(16, 8))  # 增加高度以适应更好的显示
             
-            # Only show top categories to avoid overcrowding
-            if len(crosstab.index) > 10:
-                # Get top 10 categories by total count
-                top_cats = df[feature_col].value_counts().head(10).index
-                crosstab = crosstab.loc[top_cats]
-            
-            # Create stacked bar plot
+            # Create stacked bar plot with better styling
             crosstab.plot(kind='barh', stacked=True, ax=ax, 
-                         colormap='Set3', alpha=0.8, figsize=(12, 8))
+                        colormap='Set3', alpha=0.9, width=0.7)
             
-            ax.set_title(f'{feature_col} vs {target_col} - 分类交叉分析', fontsize=14, fontweight='bold')
-            ax.set_xlabel('百分比 (%)', fontsize=12)
-            ax.set_ylabel(feature_col, fontsize=12)
-            ax.legend(title=target_col, bbox_to_anchor=(1.05, 1), loc='upper left')
-            ax.grid(True, alpha=0.3, axis='x')
+            # 优化标题和标签字体大小
+            ax.set_title(f'{feature_col} vs {target_col} - 分类交叉分析 (前10个类别)', 
+                        fontsize=18, fontweight='bold', pad=20)
+            ax.set_xlabel('百分比 (%)', fontsize=14, fontweight='bold')
+            ax.set_ylabel(feature_col, fontsize=14, fontweight='bold')
+            
+            # 优化图例
+            ax.legend(title=target_col, bbox_to_anchor=(1.02, 1), loc='upper left',
+                    fontsize=12, title_fontsize=13)
+            
+            # 优化网格和刻度
+            ax.grid(True, alpha=0.4, axis='x', linestyle='--')
+            ax.tick_params(axis='both', which='major', labelsize=12)
+            
+            # 限制Y轴标签长度，避免过长
+            y_labels = [str(label)[:20] + '...' if len(str(label)) > 20 else str(label) 
+                    for label in ax.get_yticklabels()]
+            ax.set_yticklabels(y_labels)
+            
+            # 添加数值标签（只在较大的区块上显示）
+            for container in ax.containers:
+                ax.bar_label(container, 
+                            labels=[f'{v:.1f}%' if v > 8 else '' for v in container.datavalues], 
+                            label_type='center', fontsize=10, fontweight='bold', color='white')
             
             plt.tight_layout()
             
             buffer = io.BytesIO()
-            plt.savefig(buffer, format='png', bbox_inches='tight', dpi=150,
-                       facecolor='white', edgecolor='none')
+            plt.savefig(buffer, format='png', bbox_inches='tight', dpi=300,
+                    facecolor='white', edgecolor='none', pad_inches=0.1)
             buffer.seek(0)
             plt.close()
             
