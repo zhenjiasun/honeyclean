@@ -31,25 +31,33 @@ class PowerPointGenerator:
         prs.slide_height = Inches(self.config.slide_height)
         
         # Create slides
+        logger.info("📄 Generating title slide...")
         self._create_title_slide(prs, profiling_results)
+        logger.info("📊 Generating dataset overview slide...")
         self._create_overview_slide(prs, profiling_results)
         
         # Add data conversion results slide if available
         if 'data_conversion' in profiling_results:
+            logger.info("🔄 Generating data type conversion analysis slide...")
             self._create_data_conversion_slide(prs, profiling_results)
         
         # Add enhanced analysis slides
         if 'target_correlation' in profiling_results:
+            logger.info("📈 Generating target correlation analysis slide...")
             self._create_target_correlation_slide(prs, profiling_results)
         if 'target_distribution' in profiling_results:
+            logger.info("📊 Generating target distribution analysis slide...")
             self._create_target_distribution_slide(prs, profiling_results)
         if 'id_uniqueness' in profiling_results:
+            logger.info("🔍 Generating ID uniqueness validation slide...")
             self._create_id_uniqueness_slide(prs, profiling_results)
         
+        logger.info("📊 Generating missing values analysis slide...")
         self._create_missing_values_slide(prs, df_original)
         
         # Create two slides per column: visualization + enhanced statistics
         for column_name, column_analysis in profiling_results['columns'].items():
+            logger.info(f"📊 Generating column analysis slide for {column_name}...")
             # Slide 1: Enhanced visualization with correlation plots and heatmaps
             self._create_column_slide(prs, column_name, column_analysis, df_original, profiling_results)
             # Slide 2: Enhanced statistics with beautiful formatting
@@ -266,47 +274,72 @@ class PowerPointGenerator:
     
     def _create_target_correlation_slide(self, prs: Presentation, results: Dict[str, Any]):
         """Create target correlation analysis slide."""
-        slide_layout = prs.slide_layouts[1]
-        slide = prs.slides.add_slide(slide_layout)
+    slide_layout = prs.slide_layouts[6]  # 使用空白布局
+    slide = prs.slides.add_slide(slide_layout)
+    
+    # 添加标题
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.8))
+    title_frame = title_box.text_frame
+    title_frame.text = "目标变量相关性分析 (Target Correlation Analysis)"
+    title_frame.paragraphs[0].font.size = Pt(24)
+    title_frame.paragraphs[0].font.bold = True
+    
+    for target_col, correlations in results['target_correlation'].items():
+        # 过滤掉nan值并排序
+        valid_correlations = {k: v for k, v in correlations['correlations'].items() 
+                            if not pd.isna(v) and k != target_col}
         
-        title = slide.shapes.title
-        title.text = "目标变量相关性分析 (Target Correlation Analysis)"
+        sorted_corrs = sorted(valid_correlations.items(), 
+                            key=lambda x: abs(x[1]), reverse=True)
         
-        # Create text content from correlation analysis
-        correlation_content = ""
-        for target_col, correlations in results['target_correlation'].items():
-            correlation_content += f"\n🎯 目标变量: {target_col}\n\n"
-            
-            # Get top correlations
-            sorted_corrs = sorted(correlations['correlations'].items(), 
-                                key=lambda x: abs(x[1]), reverse=True)
-            
-            correlation_content += "强相关特征 (Strong Correlations):\n"
-            for col, corr_val in sorted_corrs[:10]:  # Top 10
-                if col != target_col:
-                    strength = StatisticalFormatter._interpret_correlation(abs(corr_val))
-                    correlation_content += f"• {col}: {corr_val:.4f} ({strength})\n"
+        # 获取前20和后20
+        top_20 = sorted_corrs[:20]
+        bottom_20 = sorted_corrs[-20:] if len(sorted_corrs) > 20 else []
         
-        # Add text box
-        content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(12), Inches(5.5))
-        content_frame = content_box.text_frame
-        content_frame.word_wrap = True
-        content_frame.text = correlation_content
+        # 左侧 - 前20个最强相关性
+        left_content = f"🎯 目标变量: {target_col}\n\n前20个最强相关特征:\n"
+        for col, corr_val in top_20:
+            strength = StatisticalFormatter._interpret_correlation(abs(corr_val))
+            left_content += f"• {col}: {corr_val:.4f} ({strength})\n"
         
-        # Style the text
-        for paragraph in content_frame.paragraphs:
-            paragraph.font.size = Pt(12)
-            if "🎯" in paragraph.text:
-                paragraph.font.bold = True
-                paragraph.font.size = Pt(14)
+        left_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(5.5), Inches(6))
+        left_frame = left_box.text_frame
+        left_frame.word_wrap = True
+        left_frame.text = left_content
+        
+        # 右侧 - 后20个最弱相关性
+        if bottom_20:
+            right_content = f"\n后20个最弱相关特征:\n"
+            for col, corr_val in bottom_20:
+                strength = StatisticalFormatter._interpret_correlation(abs(corr_val))
+                right_content += f"• {col}: {corr_val:.4f} ({strength})\n"
+        else:
+            right_content = "\n总特征数少于40个，\n无需显示最弱相关特征"
+        
+        right_box = slide.shapes.add_textbox(Inches(6.5), Inches(1.2), Inches(5.5), Inches(6))
+        right_frame = right_box.text_frame
+        right_frame.word_wrap = True
+        right_frame.text = right_content
+        
+        # 设置字体样式
+        for frame in [left_frame, right_frame]:
+            for paragraph in frame.paragraphs:
+                paragraph.font.size = Pt(11)
+                if "🎯" in paragraph.text or "前20个" in paragraph.text or "后20个" in paragraph.text:
+                    paragraph.font.bold = True
+                    paragraph.font.size = Pt(13)
     
     def _create_target_distribution_slide(self, prs: Presentation, results: Dict[str, Any]):
         """Create target distribution analysis slide."""
-        slide_layout = prs.slide_layouts[1]
+        slide_layout = prs.slide_layouts[6]  # 使用空白布局
         slide = prs.slides.add_slide(slide_layout)
         
-        title = slide.shapes.title
-        title.text = "目标变量分布分析 (Target Distribution Analysis)"
+        # 添加标题
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.8))
+        title_frame = title_box.text_frame
+        title_frame.text = "目标变量分布分析 (Target Distribution Analysis)"
+        title_frame.paragraphs[0].font.size = Pt(24)
+        title_frame.paragraphs[0].font.bold = True
         
         # Create content from target distribution
         distribution_content = ""
@@ -330,7 +363,7 @@ class PowerPointGenerator:
                     is_balanced = class_balance.get('is_balanced', True)
                     balance_status = "平衡" if is_balanced else "不平衡"
                     distribution_content += f"\n类别平衡: {balance_status} (最大类别: {largest_pct:.1f}%)\n"
-                    
+            
             elif target_stats.get('type') == 'numeric':
                 distribution_content += "数值统计 (Numeric Statistics):\n"
                 distribution_content += f"• 平均值: {target_stats.get('mean', 0):.2f}\n"
@@ -340,7 +373,7 @@ class PowerPointGenerator:
                 distribution_content += f"• 最大值: {target_stats.get('max', 0):.2f}\n"
         
         # Add text box
-        content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(12), Inches(5.5))
+        content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(12), Inches(6))
         content_frame = content_box.text_frame
         content_frame.word_wrap = True
         content_frame.text = distribution_content
@@ -351,6 +384,9 @@ class PowerPointGenerator:
             if "🎯" in paragraph.text:
                 paragraph.font.bold = True
                 paragraph.font.size = Pt(14)
+            elif any(keyword in paragraph.text for keyword in ["类别分布", "数值统计", "类别平衡"]):
+                paragraph.font.bold = True
+                paragraph.font.size = Pt(13)
     
     def _create_id_uniqueness_slide(self, prs: Presentation, results: Dict[str, Any]):
         """Create ID uniqueness validation slide."""
