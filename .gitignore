@@ -163,7 +163,6 @@ honeyclean.log
 *.log
 
 # Output directories
-reports/
 output/
 temp/
 plots/
