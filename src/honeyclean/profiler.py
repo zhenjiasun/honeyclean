@@ -344,5 +344,8 @@ class AutomatedDataProfiler:
         summary_df = pd.DataFrame(summary_data)
         csv_path = f"{self.config.output_reports}/column_summary.csv"
         summary_df.to_csv(csv_path, index=False)
+
+        excel_path = f"{self.config.output_reports}/column_summary.xlsx"
+        summary_df.to_excel(excel_path, index=False, engine='openpyxl')
         
         return csv_path

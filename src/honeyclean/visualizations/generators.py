@@ -417,8 +417,8 @@ class VisualizationGenerator:
             unique_count = series.nunique()
             cardinality = unique_count / len(series)
             stats_text = f'统计信息:\n总类别数: {unique_count}\n基数: {cardinality:.3f}\n显示: 前{len(top_categories)}类'
-            ax.text(0.98, 0.02, stats_text, transform=ax.transAxes, fontsize=10,
-                   verticalalignment='bottom', horizontalalignment='right',
+            ax.text(0.98, 0.98, stats_text, transform=ax.transAxes, fontsize=10,
+                   verticalalignment='top', horizontalalignment='right',
                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
             
             plt.tight_layout()
