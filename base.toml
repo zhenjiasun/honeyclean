@@ -3,8 +3,8 @@ version = "1.0.0"
 description = "Automated data profiling and cleaning recommendations"
 
 [paths]
-input_data = "/Users/zhenjiasun/Desktop/work/爸中国/YH-analysis/data/data_combined_uncleaned.csv"
-output_reports = "/Users/zhenjiasun/Desktop/work/爸中国/YH-analysis/reports"
+input_data = "/Users/zhenjiasun/Desktop/work/爸中国/YH-analysis/data/data4_honeyclean.csv"
+output_reports = "/Users/zhenjiasun/Desktop/work/爸中国/YH-analysis/reports_2024(data4)"
 
 [analysis]
 chunk_size = 10000
@@ -22,11 +22,12 @@ missing_value_threshold = 0.05
 
 [columns]
 # Target column(s) for analysis - can be a string or list of strings
-# target_col = "target_variable"
+target_col = '年度达成额_年度达成额'
+#"年度达成额_年度达成额" #"2022达成" 
 # target_col = ["target1", "target2"]
 
 # ID columns for uniqueness checking - list of column names
-# id_cols = ["id", "user_id", "transaction_id"]
+id_cols = ["客户名称"]
 
 [visualization]
 figure_dpi = 300

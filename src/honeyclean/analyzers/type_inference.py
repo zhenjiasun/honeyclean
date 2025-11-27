@@ -19,7 +19,23 @@ class DataTypeInference:
         'credit_card': r'^\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}$',
         'date_iso': r'^\d{4}-\d{2}-\d{2}$',
         'datetime_iso': r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}',
-        'currency': r'^\$?[\d,]+\.?\d*$'
+        'currency': r'^\$?[\d,]+\.?\d*$',
+        'datetime_global': (
+            r'^(?:'
+                # YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD
+                r'(?:\d{4}[-/.]\d{2}[-/.]\d{2})'
+                # DD-MM-YYYY, DD/MM/YYYY, DD.MM.YYYY
+                r'|(?:\d{2}[-/.]\d{2}[-/.]\d{4})'
+                # MM-DD-YYYY, MM/DD/YYYY, MM.DD.YYYY
+                r'|(?:\d{2}[-/.]\d{2}[-/.]\d{4})'
+            r')'
+            # Optional time part
+            r'(?:[T\s]\d{1,2}:\d{2}'
+                r'(?:\:\d{2}(?:\.\d{1,6})?)?'   # Optional seconds + fractional
+                r'(?:\s?(?:AM|PM|am|pm))?'      # Optional AM/PM
+                r'(?:Z|[+-]\d{2}:?\d{2})?'      # Optional timezone
+            r')?$'
+        )
     }
     
     @classmethod

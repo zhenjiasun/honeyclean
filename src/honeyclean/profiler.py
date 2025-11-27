@@ -47,7 +47,7 @@ class AutomatedDataProfiler:
         
         # Perform data type conversion analysis (analysis only, no actual conversion)
         logger.info("Analyzing data type conversion opportunities...")
-        _, conversion_report = DataTypeConverter.find_and_convert_float_columns(df)
+        _, conversion_report = DataTypeConverter.find_and_convert_columns(df)
         conversion_analysis = DataTypeConverter.analyze_conversion_results(conversion_report)
         
         # Use the original dataframe for analysis (no conversion applied)
