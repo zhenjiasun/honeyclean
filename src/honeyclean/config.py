@@ -52,6 +52,7 @@ class HoneyCleanConfig:
     slide_width: float = 13.333
     slide_height: float = 7.5
     template_style: str = "professional"
+    top_correlations_display: int = 20  # Number of top/bottom correlations to display
     
     # Output formats
     generate_html: bool = True
@@ -144,6 +145,7 @@ class HoneyCleanConfig:
                 slide_width=powerpoint.get('slide_width', 13.333),
                 slide_height=powerpoint.get('slide_height', 7.5),
                 template_style=powerpoint.get('template_style', 'professional'),
+                top_correlations_display=powerpoint.get('top_correlations_display', 20),
                 
                 # Output
                 generate_html=output.get('generate_html', True),

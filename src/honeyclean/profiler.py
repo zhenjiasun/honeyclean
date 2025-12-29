@@ -93,6 +93,21 @@ class AutomatedDataProfiler:
             column_analysis = self._analyze_column(df_for_analysis[column], column)
             profiling_results['columns'][column] = column_analysis
         
+        # Update column type counts based on inferred types (not just pandas dtypes)
+        inferred_type_counts = {'numeric': 0, 'categorical': 0, 'datetime': 0, 'other': 0}
+        for col_name, col_analysis in profiling_results['columns'].items():
+            col_type = col_analysis.get('type', 'other')
+            if col_type in inferred_type_counts:
+                inferred_type_counts[col_type] += 1
+            else:
+                inferred_type_counts['other'] += 1
+        
+        # Override the select_dtypes-based counts with inferred counts
+        profiling_results['dataset_info']['numeric_columns'] = inferred_type_counts['numeric']
+        profiling_results['dataset_info']['categorical_columns'] = inferred_type_counts['categorical']
+        profiling_results['dataset_info']['datetime_columns'] = inferred_type_counts['datetime']
+        profiling_results['dataset_info']['text_columns'] = inferred_type_counts['categorical']  # text is subset of categorical
+        
         # Generate reports (no more intermediate visualizations)
         logger.info("Generating reports...")
         report_paths = self._generate_reports(profiling_results, df)
@@ -258,14 +273,16 @@ class AutomatedDataProfiler:
                 analysis = StatisticalAnalyzer.analyze_numeric(series)
                 analysis['type'] = 'numeric'
                 recommendations = DataCleaningRecommendations.get_numeric_recommendations(analysis)
+            # Check datetime BEFORE categorical - datetime columns often have object dtype
+            elif suggested_type == 'datetime' or pd.api.types.is_datetime64_any_dtype(series) or \
+                 suggested_type in ['datetime_iso', 'datetime_global', 'date_iso']:
+                analysis = StatisticalAnalyzer.analyze_datetime(series)
+                analysis['type'] = 'datetime'
+                recommendations = DataCleaningRecommendations.get_datetime_recommendations(analysis)
             elif suggested_type in ['categorical', 'text'] or series.dtype == 'object':
                 analysis = StatisticalAnalyzer.analyze_categorical(series)
                 analysis['type'] = 'categorical'
                 recommendations = DataCleaningRecommendations.get_categorical_recommendations(analysis)
-            elif suggested_type == 'datetime' or pd.api.types.is_datetime64_any_dtype(series):
-                analysis = StatisticalAnalyzer.analyze_datetime(series)
-                analysis['type'] = 'datetime'
-                recommendations = DataCleaningRecommendations.get_datetime_recommendations(analysis)
             else:
                 analysis = StatisticalAnalyzer.analyze_categorical(series)
                 analysis['type'] = 'other'

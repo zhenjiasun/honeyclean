@@ -248,6 +248,32 @@ class PowerPointGenerator:
                 error_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(11), Inches(3))
                 error_frame = error_box.text_frame
                 error_frame.text = f"分类型变量图表生成失败: {str(e)}"
+                
+        elif analysis.get('type') == 'datetime' and 'error' not in analysis:
+            # Handle datetime columns with time series plots
+            try:
+                # Create time series plot showing record count over time
+                timeseries_buffer = self.viz_generator.create_datetime_timeseries_plot_for_ppt(series, column_name)
+                if timeseries_buffer:
+                    slide.shapes.add_picture(timeseries_buffer, Inches(0.5), Inches(1.2), Inches(12), Inches(5))
+                
+                # Add datetime statistics info at the bottom
+                min_date = analysis.get('min_date', 'N/A')
+                max_date = analysis.get('max_date', 'N/A')
+                date_range = analysis.get('date_range', 'N/A')
+                
+                info_text = f"时间范围: {min_date} 至 {max_date} | 跨度: {date_range}"
+                info_box = slide.shapes.add_textbox(Inches(0.5), Inches(6.5), Inches(12), Inches(0.5))
+                info_frame = info_box.text_frame
+                info_frame.text = info_text
+                info_frame.paragraphs[0].font.size = Pt(14)
+                info_frame.paragraphs[0].font.bold = True
+                
+            except Exception as e:
+                # Add error message if plots fail
+                error_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(11), Inches(3))
+                error_frame = error_box.text_frame
+                error_frame.text = f"日期型变量图表生成失败: {str(e)}"
         else:
             # Error case or unsupported type
             error_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(11), Inches(4))
@@ -278,18 +304,29 @@ class PowerPointGenerator:
             content.text = "数据集状况良好，无特殊建议。"
     
     def _create_target_correlation_slide(self, prs: Presentation, results: Dict[str, Any]):
-        """Create target correlation analysis slide."""
-        slide_layout = prs.slide_layouts[6]  # 使用空白布局
-        slide = prs.slides.add_slide(slide_layout)
-        
-        # 添加标题
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.8))
-        title_frame = title_box.text_frame
-        title_frame.text = "目标变量相关性分析 (Target Correlation Analysis)"
-        title_frame.paragraphs[0].font.size = Pt(24)
-        title_frame.paragraphs[0].font.bold = True
+        """Create target correlation analysis slide - one slide per target."""
         
         for target_col, correlations in results['target_correlation'].items():
+            # Create a NEW slide for each target
+            slide_layout = prs.slide_layouts[6]  # 使用空白布局
+            slide = prs.slides.add_slide(slide_layout)
+            
+            # Helper to truncate long column names
+            def truncate_col_name(name, max_len=25):
+                if len(name) > max_len:
+                    return name[:max_len] + "..."
+                return name
+            
+            # Truncate target column name for display
+            target_display = truncate_col_name(target_col, 40)
+            
+            # 添加标题 - 包含目标变量名称
+            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.8))
+            title_frame = title_box.text_frame
+            title_frame.text = f"目标变量相关性: {target_display}"
+            title_frame.paragraphs[0].font.size = Pt(22)
+            title_frame.paragraphs[0].font.bold = True
+            
             # 过滤掉nan值并排序
             valid_correlations = {k: v for k, v in correlations['correlations'].items() 
                                 if not pd.isna(v) and k != target_col}
@@ -297,31 +334,34 @@ class PowerPointGenerator:
             sorted_corrs = sorted(valid_correlations.items(), 
                                 key=lambda x: abs(x[1]), reverse=True)
             
-            # 获取前20和后20
-            top_20 = sorted_corrs[:20]
-            bottom_20 = sorted_corrs[-20:] if len(sorted_corrs) > 20 else []
+            # 获取前N和后N (使用配置的显示数量)
+            display_count = self.config.top_correlations_display
+            top_n = sorted_corrs[:display_count]
+            bottom_n = sorted_corrs[-display_count:] if len(sorted_corrs) > display_count else []
             
-            # 左侧 - 前20个最强相关性
-            left_content = f"🎯 目标变量: {target_col}\n\n前20个最强相关特征:\n"
-            for col, corr_val in top_20:
+            # 左侧 - 前N个最强相关性
+            left_content = f"前{display_count}个最强相关特征:\n"
+            for col, corr_val in top_n:
                 strength = StatisticalFormatter._interpret_correlation(abs(corr_val))
-                left_content += f"• {col}: {corr_val:.4f} ({strength})\n"
+                col_display = truncate_col_name(col)
+                left_content += f"• {col_display}: {corr_val:.3f} ({strength})\n"
             
-            left_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(5.5), Inches(6))
+            left_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.0), Inches(6), Inches(6))
             left_frame = left_box.text_frame
             left_frame.word_wrap = True
             left_frame.text = left_content
             
-            # 右侧 - 后20个最弱相关性
-            if bottom_20:
-                right_content = f"\n后20个最弱相关特征:\n"
-                for col, corr_val in bottom_20:
+            # 右侧 - 后N个最弱相关性
+            if bottom_n:
+                right_content = f"后{display_count}个最弱相关特征:\n"
+                for col, corr_val in bottom_n:
                     strength = StatisticalFormatter._interpret_correlation(abs(corr_val))
-                    right_content += f"• {col}: {corr_val:.4f} ({strength})\n"
+                    col_display = truncate_col_name(col)
+                    right_content += f"• {col_display}: {corr_val:.3f} ({strength})\n"
             else:
-                right_content = "\n总特征数少于40个，\n无需显示最弱相关特征"
+                right_content = f"总特征数少于{display_count*2}个，\n无需显示最弱相关特征"
             
-            right_box = slide.shapes.add_textbox(Inches(6.5), Inches(1.2), Inches(5.5), Inches(6))
+            right_box = slide.shapes.add_textbox(Inches(6.8), Inches(1.0), Inches(6), Inches(6))
             right_frame = right_box.text_frame
             right_frame.word_wrap = True
             right_frame.text = right_content
@@ -329,10 +369,10 @@ class PowerPointGenerator:
             # 设置字体样式
             for frame in [left_frame, right_frame]:
                 for paragraph in frame.paragraphs:
-                    paragraph.font.size = Pt(11)
-                    if "🎯" in paragraph.text or "前20个" in paragraph.text or "后20个" in paragraph.text:
+                    paragraph.font.size = Pt(10)
+                    if f"前{display_count}个" in paragraph.text or f"后{display_count}个" in paragraph.text:
                         paragraph.font.bold = True
-                        paragraph.font.size = Pt(13)
+                        paragraph.font.size = Pt(12)
     
     def _create_target_distribution_slide(self, prs: Presentation, results: Dict[str, Any]):
         """Create target distribution analysis slide."""

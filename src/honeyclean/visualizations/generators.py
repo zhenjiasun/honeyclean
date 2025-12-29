@@ -496,3 +496,107 @@ class VisualizationGenerator:
             plt.close()
             print(f"Error creating boxplot: {e}")
             return None
+
+    def create_datetime_timeseries_plot_for_ppt(self, series: pd.Series, column_name: str) -> io.BytesIO:
+        """
+        Create time series plot for datetime columns showing count of records over time.
+        Auto-detects the best granularity (year, month, day, hour) based on date range.
+        """
+        try:
+            self._ensure_chinese_font()
+            
+            # Convert to datetime if needed and drop NaN
+            clean_series = pd.to_datetime(series, errors='coerce').dropna()
+            
+            if len(clean_series) == 0:
+                return None
+            
+            # Determine the best granularity based on date range
+            date_range = clean_series.max() - clean_series.min()
+            
+            if date_range.days > 365 * 3:  # More than 3 years -> group by year
+                grouped = clean_series.dt.to_period('Y').value_counts().sort_index()
+                x_label = '年份 (Year)'
+                title_suffix = '按年分布'
+            elif date_range.days > 90:  # More than 3 months -> group by month
+                grouped = clean_series.dt.to_period('M').value_counts().sort_index()
+                x_label = '月份 (Month)'
+                title_suffix = '按月分布'
+            elif date_range.days > 7:  # More than a week -> group by day
+                grouped = clean_series.dt.to_period('D').value_counts().sort_index()
+                x_label = '日期 (Date)'
+                title_suffix = '按日分布'
+            else:  # Less than a week -> group by hour
+                grouped = clean_series.dt.to_period('H').value_counts().sort_index()
+                x_label = '时间 (Hour)'
+                title_suffix = '按小时分布'
+            
+            # Create figure with two subplots: line chart and bar chart
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+            
+            # Convert period index to string for plotting
+            x_values = [str(p) for p in grouped.index]
+            y_values = grouped.values
+            
+            # Left plot: Line chart showing trend
+            ax1.plot(range(len(x_values)), y_values, 'o-', color='steelblue', 
+                     linewidth=2, markersize=6, markerfacecolor='white', markeredgewidth=2)
+            ax1.fill_between(range(len(x_values)), y_values, alpha=0.3, color='steelblue')
+            
+            # Set x-axis labels (show subset if too many)
+            if len(x_values) > 20:
+                step = len(x_values) // 10
+                ax1.set_xticks(range(0, len(x_values), step))
+                ax1.set_xticklabels([x_values[i] for i in range(0, len(x_values), step)], 
+                                    rotation=45, ha='right', fontsize=9)
+            else:
+                ax1.set_xticks(range(len(x_values)))
+                ax1.set_xticklabels(x_values, rotation=45, ha='right', fontsize=9)
+            
+            ax1.set_title(f'{column_name} - 时间趋势图 ({title_suffix})', fontsize=14, fontweight='bold')
+            ax1.set_xlabel(x_label, fontsize=12)
+            ax1.set_ylabel('记录数 (Count)', fontsize=12)
+            ax1.grid(True, alpha=0.3)
+            
+            # Add statistics annotation
+            total_count = len(clean_series)
+            peak_period = grouped.idxmax()
+            peak_count = grouped.max()
+            stats_text = f'总记录: {total_count:,}\n峰值: {peak_period}\n({peak_count:,}条)'
+            ax1.text(0.98, 0.98, stats_text, transform=ax1.transAxes, fontsize=10,
+                    verticalalignment='top', horizontalalignment='right',
+                    bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.8))
+            
+            # Right plot: Bar chart showing distribution
+            bar_colors = plt.cm.Blues(np.linspace(0.3, 0.9, len(x_values)))
+            bars = ax2.bar(range(len(x_values)), y_values, color=bar_colors, edgecolor='navy', alpha=0.8)
+            
+            if len(x_values) > 20:
+                ax2.set_xticks(range(0, len(x_values), step))
+                ax2.set_xticklabels([x_values[i] for i in range(0, len(x_values), step)], 
+                                    rotation=45, ha='right', fontsize=9)
+            else:
+                ax2.set_xticks(range(len(x_values)))
+                ax2.set_xticklabels(x_values, rotation=45, ha='right', fontsize=9)
+            
+            ax2.set_title(f'{column_name} - 时间分布柱状图', fontsize=14, fontweight='bold')
+            ax2.set_xlabel(x_label, fontsize=12)
+            ax2.set_ylabel('记录数 (Count)', fontsize=12)
+            ax2.grid(True, alpha=0.3, axis='y')
+            
+            plt.tight_layout()
+            
+            # Save to memory
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', bbox_inches='tight', dpi=150,
+                       facecolor='white', edgecolor='none')
+            buffer.seek(0)
+            plt.close()
+            
+            return buffer
+            
+        except Exception as e:
+            plt.close()
+            print(f"Error creating datetime timeseries plot: {e}")
+            return None
+
