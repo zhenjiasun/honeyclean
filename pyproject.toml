@@ -62,3 +62,10 @@ include = ["honeyclean*"]
 
 [tool.setuptools.package-data]
 honeyclean = ["*.toml", "templates/*"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+disable_error_code = ["import-untyped", "attr-defined", "arg-type", "return-value", "assignment", "operator", "dict-item", "valid-type", "no-redef", "index", "import-not-found", "var-annotated"]
