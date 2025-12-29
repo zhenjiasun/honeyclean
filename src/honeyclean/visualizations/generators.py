@@ -6,12 +6,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
-from pathlib import Path
 import warnings
-import platform
 import io
-import base64
-from typing import Optional, Tuple
+from typing import Tuple
 
 from ..config import HoneyCleanConfig
 
@@ -45,7 +42,7 @@ class VisualizationGenerator:
             try:
                 plt.rcParams['font.family'] = ['SimHei', 'DejaVu Sans']
                 plt.rcParams['axes.unicode_minus'] = False
-            except:
+            except Exception:
                 pass
     
     def _setup_matplotlib(self):
@@ -569,7 +566,7 @@ class VisualizationGenerator:
             
             # Right plot: Bar chart showing distribution
             bar_colors = plt.cm.Blues(np.linspace(0.3, 0.9, len(x_values)))
-            bars = ax2.bar(range(len(x_values)), y_values, color=bar_colors, edgecolor='navy', alpha=0.8)
+            ax2.bar(range(len(x_values)), y_values, color=bar_colors, edgecolor='navy', alpha=0.8)
             
             if len(x_values) > 20:
                 ax2.set_xticks(range(0, len(x_values), step))

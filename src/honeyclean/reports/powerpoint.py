@@ -6,18 +6,16 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, Any
-import io
 import pandas as pd
 import logging
-
-# Set up logger
-logger = logging.getLogger(__name__)
 
 from ..config import HoneyCleanConfig
 from ..visualizations.generators import VisualizationGenerator
 from ..utils.formatters import StatisticalFormatter
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 class PowerPointGenerator:
     """Generate professional PowerPoint presentations from profiling results."""

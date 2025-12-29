@@ -7,7 +7,7 @@ import numpy as np
 import logging
 import json
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, Any, Optional, Union
 from datetime import datetime
 
 from .config import HoneyCleanConfig

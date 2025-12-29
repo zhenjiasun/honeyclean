@@ -3,8 +3,6 @@ Advanced data type inference with pattern recognition.
 """
 
 import pandas as pd
-import numpy as np
-import re
 from typing import Dict, Any
 
 class DataTypeInference:

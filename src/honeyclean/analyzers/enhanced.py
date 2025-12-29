@@ -4,7 +4,7 @@ Enhanced analyzers for target correlation, ID uniqueness, and target distributio
 
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Union
 import logging
 
 logger = logging.getLogger(__name__)

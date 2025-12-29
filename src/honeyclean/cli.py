@@ -119,7 +119,7 @@ def profile(ctx, input_file: Optional[str], output: Optional[str],
         click.echo(f"Missing Values: {dataset_info['total_missing']:,} ({dataset_info['missing_percentage']:.1f}%)")
         click.echo(f"Duplicate Rows: {dataset_info['duplicate_count']:,}")
         
-        click.echo(f"\nColumn Types:")
+        click.echo("\nColumn Types:")
         click.echo(f"  • Numeric: {dataset_info['numeric_columns']}")
         click.echo(f"  • Categorical: {dataset_info['categorical_columns']}")
         click.echo(f"  • Datetime: {dataset_info['datetime_columns']}")
@@ -264,7 +264,7 @@ file = "honeyclean.log"
         
         click.echo(f"Configuration file created: {config_file}")
         click.echo("You can now customize the settings and run:")
-        click.echo(f"  honeyclean profile your_data.csv")
+        click.echo("  honeyclean profile your_data.csv")
         
     except Exception as e:
         click.echo(f"Error creating configuration file: {e}", err=True)
@@ -283,14 +283,14 @@ def info(ctx):
     click.echo(f"Input Data Directory: {config.input_data}")
     click.echo(f"Output Reports Directory: {config.output_reports}")
     
-    click.echo(f"\nAnalysis Settings:")
+    click.echo("\nAnalysis Settings:")
     click.echo(f"  • Chunk Size: {config.chunk_size:,}")
     click.echo(f"  • Max Memory: {config.max_memory_mb} MB")
     click.echo(f"  • Statistical Analysis: {config.enable_statistical_analysis}")
     click.echo(f"  • Outlier Detection: {config.enable_outlier_detection}")
     click.echo(f"  • Correlation Analysis: {config.enable_correlation_analysis}")
     
-    click.echo(f"\nOutput Formats:")
+    click.echo("\nOutput Formats:")
     click.echo(f"  • PowerPoint: {config.generate_powerpoint}")
     click.echo(f"  • JSON: {config.generate_json}")
     click.echo(f"  • HTML: {config.generate_html}")
@@ -466,23 +466,23 @@ def run(ctx, input_file: Optional[str], output: Optional[str],
         click.echo(f"❓ Missing Values: {dataset_info['total_missing']:,} ({dataset_info['missing_percentage']:.1f}%)")
         click.echo(f"🔄 Duplicate Rows: {dataset_info['duplicate_count']:,}")
         
-        click.echo(f"\n📈 Column Types:")
+        click.echo("\n📈 Column Types:")
         click.echo(f"  • Numeric: {dataset_info['numeric_columns']}")
         click.echo(f"  • Categorical: {dataset_info['categorical_columns']}")
         click.echo(f"  • Datetime: {dataset_info['datetime_columns']}")
         
         # Enhanced analysis results
         if 'target_correlation' in results['profiling_results']:
-            click.echo(f"🎯 Target correlation analysis completed")
+            click.echo("🎯 Target correlation analysis completed")
         if 'id_uniqueness' in results['profiling_results']:
-            click.echo(f"🆔 ID uniqueness validation completed")
+            click.echo("🆔 ID uniqueness validation completed")
         
         # Show output files
         click.echo(f"\n📁 Reports generated in: {config.output_reports}")
         for report_type, report_path in results['report_paths'].items():
             click.echo(f"  • {report_type.upper()}: {report_path}")
         
-        click.echo(f"\n🍯 HoneyClean analysis completed successfully!")
+        click.echo("\n🍯 HoneyClean analysis completed successfully!")
         
     except Exception as e:
         click.echo(f"Error during analysis: {e}", err=True)

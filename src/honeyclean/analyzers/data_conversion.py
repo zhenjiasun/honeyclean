@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import Tuple, Dict, Any, List
+from typing import Tuple, Dict, Any
 import logging
 
 # Assuming logger is defined elsewhere
@@ -180,13 +180,13 @@ class DataTypeConverter:
     @staticmethod
     def _log_conversion_results(conversion_report: Dict[str, Any]) -> None:
         """Log the conversion results."""
-        logger.info(f"=== Float Conversion Results ===")
+        logger.info("=== Float Conversion Results ===")
         logger.info(f"Fully convertible float columns: {len(conversion_report['convertible_float_columns'])}")
         logger.info(f"Partially convertible float columns: {len(conversion_report['partially_convertible_float_columns'])}")
         logger.info(f"Unconvertible to float: {len(conversion_report['unconvertible_float_columns'])}")
         logger.info(f"Already float columns: {len(conversion_report['already_float_columns'])}")
         
-        logger.info(f"=== DateTime Conversion Results ===")
+        logger.info("=== DateTime Conversion Results ===")
         logger.info(f"Fully convertible datetime columns: {len(conversion_report['convertible_datetime_columns'])}")
         logger.info(f"Partially convertible datetime columns: {len(conversion_report['partially_convertible_datetime_columns'])}")
         logger.info(f"Unconvertible to datetime: {len(conversion_report['unconvertible_datetime_columns'])}")
