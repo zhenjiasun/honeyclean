@@ -48,15 +48,42 @@ HoneyClean 是一个全面的 Python 包，用于自动化数据分析、清洗�
 
 ## 🚀 Quick Start (快速开始)
 
-### 1. Installation (安装)
+### 1. Installation & Setup (安装与设置)
 
+We use `uv` for fast and reliable dependency management.
+
+**Step 1: Install uv (安装 uv)**
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Or using Homebrew on macOS
+brew install uv
+```
+
+**Step 2: Clone and Setup (克隆并设置)**
 ```bash
 # Clone the repository (克隆仓库)
 git clone https://github.com/honeyclean/honeyclean.git
 cd honeyclean
 
-# Install package (安装包)
-pip install -e .
+# Install dependencies (安装依赖)
+uv sync
+```
+
+**Step 3: Run Commands (运行命令)**
+You can run commands in two ways (两种运行方式):
+
+Option A: Using `uv run` (Recommended)
+```bash
+uv run honeyclean init
+uv run honeyclean profile data.csv
+```
+
+Option B: Activate Environment (激活环境)
+```bash
+source .venv/bin/activate
+honeyclean init
 ```
 
 ### 2. Initialize Configuration (初始化配置)
