@@ -2,7 +2,7 @@
 🍯 HoneyClean - Automated Data Profiling and Cleaning Package
 ==========================================================
 
-A comprehensive Python package for automated data profiling, cleaning 
+A comprehensive Python package for automated data profiling, cleaning
 recommendations, and professional report generation.
 
 Author: Sunny Sun
@@ -22,11 +22,11 @@ __author__ = "Sunny Sun"
 __email__ = "zhenjiasun@berkeley.edu"
 
 __all__ = [
-    'AutomatedDataProfiler',
-    'HoneyCleanConfig',
-    'StatisticalAnalyzer',
-    'DataTypeInference',
-    'DataCleaningRecommendations',
-    'VisualizationGenerator',
-    'PowerPointGenerator'
+    "AutomatedDataProfiler",
+    "HoneyCleanConfig",
+    "StatisticalAnalyzer",
+    "DataTypeInference",
+    "DataCleaningRecommendations",
+    "VisualizationGenerator",
+    "PowerPointGenerator",
 ]
