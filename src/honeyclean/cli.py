@@ -10,7 +10,7 @@ import logging
 from typing import Optional
 
 from .config import HoneyCleanConfig
-from .profiler import AutomatedDataProfiler
+
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +100,7 @@ def profile(ctx, input_file: Optional[str], output: Optional[str],
         click.echo(f"Dataset shape: {df.shape}")
         
         # Create profiler and run analysis
+        from .profiler import AutomatedDataProfiler
         profiler = AutomatedDataProfiler(config)
         
         with click.progressbar(length=100, label='Profiling dataset') as bar:
@@ -173,6 +174,7 @@ def analyze(ctx, input_file: str, columns: tuple, output: Optional[str]):
             click.echo(f"Analyzing columns: {list(available_cols)}")
         
         # Run profiling
+        from .profiler import AutomatedDataProfiler
         profiler = AutomatedDataProfiler(config)
         results = profiler.profile_dataset(df, f"{Path(input_file).stem}_analysis")
         
@@ -356,6 +358,7 @@ def stats(ctx, input_file: Optional[str], target_col: Optional[str],
         click.echo(f"Dataset shape: {df.shape}\n")
         
         # Create profiler and run analysis
+        from .profiler import AutomatedDataProfiler
         profiler = AutomatedDataProfiler(config)
         
         with click.progressbar(length=100, label='Analyzing data') as bar:
@@ -440,6 +443,7 @@ def run(ctx, input_file: Optional[str], output: Optional[str],
         click.echo("")
         
         # Create profiler and run complete analysis
+        from .profiler import AutomatedDataProfiler
         profiler = AutomatedDataProfiler(config)
         
         with click.progressbar(length=100, label='Running complete analysis') as bar:

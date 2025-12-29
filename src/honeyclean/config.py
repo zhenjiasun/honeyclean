@@ -69,8 +69,7 @@ class HoneyCleanConfig:
     log_file: str = "honeyclean.log"
     
     def __post_init__(self):
-        """Create directories and setup logging after initialization."""
-        self.create_directories()
+        """Setup logging after initialization."""
         self.setup_logging()
     
     def create_directories(self):

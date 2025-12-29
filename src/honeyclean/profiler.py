@@ -27,6 +27,7 @@ class AutomatedDataProfiler:
     
     def __init__(self, config: Optional[HoneyCleanConfig] = None):
         self.config = config or HoneyCleanConfig()
+        self.config.create_directories()
         self.visualization_generator = VisualizationGenerator(self.config)
         self.powerpoint_generator = PowerPointGenerator(self.config)
         
