@@ -1,7 +1,5 @@
 """Basic tests for honeyclean package."""
 
-import pytest
-
 
 def test_import_honeyclean():
     """Test that honeyclean can be imported."""
