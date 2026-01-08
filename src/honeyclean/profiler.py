@@ -19,6 +19,7 @@ from .analyzers.data_conversion import DataTypeConverter
 from .visualizations.generators import VisualizationGenerator
 from .reports.powerpoint import PowerPointGenerator
 from .utils.formatters import StatisticalFormatter
+from .validators import DataValidator
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,13 @@ class AutomatedDataProfiler:
         else:
             df = data.copy()
             dataset_name = dataset_name or "dataset"
+
+        # Data validation (raises DataValidationError if validation fails)
+        if self.config.enable_data_validation:
+            logger.info("Validating data for type consistency...")
+            validator = DataValidator(threshold=self.config.validation_threshold)
+            validator.validate_dataframe(df)
+            logger.info("Data validation passed")
 
         # Perform data type conversion analysis (analysis only, no actual conversion)
         logger.info("Analyzing data type conversion opportunities...")

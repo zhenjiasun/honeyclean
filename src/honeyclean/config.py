@@ -66,6 +66,18 @@ class HoneyCleanConfig(BaseModel):
         default=0.05, ge=0, le=1, description="Missing value threshold (0-1)"
     )
 
+    # Data validation settings
+    enable_data_validation: bool = Field(
+        default=True,
+        description="Enable data validation to detect messy columns before profiling",
+    )
+    validation_threshold: float = Field(
+        default=0.05,
+        ge=0,
+        le=1,
+        description="Max percentage of invalid values allowed in numeric columns (0-1)",
+    )
+
     # Visualization settings
     figure_dpi: int = Field(
         default=300, gt=0, description="Figure DPI for visualizations"
