@@ -42,7 +42,7 @@ class TestDataValidator:
 
     def test_threshold_respected(self):
         """Test that threshold is respected.
-        
+
         The validator flags columns where numeric_rate >= (1 - threshold).
         With 10% errors (90% numeric), threshold must be > 10% to NOT flag it.
         """
