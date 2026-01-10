@@ -46,6 +46,17 @@ HoneyClean 是一个全面的 Python 包，用于自动化数据分析、清洗�
 - **Command-line interface (命令行界面)**: User-friendly CLI tools
 - **Jupyter integration (Jupyter集成)**: Seamless notebook support
 
+### ✅ **Input Validation with Pydantic (使用Pydantic的输入验证)**
+- **Config validation (配置验证)**: All configuration options are validated with helpful error messages
+- **Type coercion (类型转换)**: Automatic type conversion for configuration values
+- **Range checking (范围检查)**: Validation of thresholds, percentages, and numeric values
+
+### 🛡️ **Data Validation (数据验证)**
+- **Messy column detection (脏数据列检测)**: Automatically detect columns that should be numeric but contain string values
+- **Configurable threshold (可配置阈值)**: Set the allowed percentage of invalid values (default 5%)
+- **Detailed error reporting (详细错误报告)**: Get column names, error percentages, and sample problematic values
+- **Fail-fast behavior (快速失败行为)**: Validation errors stop processing before report generation
+
 ## 🚀 Quick Start (快速开始)
 
 ### 1. Installation & Setup (安装与设置)
@@ -276,6 +287,28 @@ honeyclean info
    correlation_threshold = 0.8     # High correlation threshold
    high_cardinality_threshold = 50 # High cardinality threshold
    missing_value_threshold = 0.05  # Missing value concern threshold
+   ```
+
+5. **Configure Data Validation (配置数据验证)**
+   ```toml
+   [analysis]
+   # Enable/disable validation (启用/禁用验证)
+   enable_data_validation = true
+   
+   # Max percentage of invalid values allowed in numeric columns
+   # 数值列中允许的最大无效值百分比
+   validation_threshold = 0.05  # 5% threshold
+   ```
+   
+   **When validation fails, you'll see (验证失败时显示):**
+   ```
+   DataValidationError: Data validation failed: 1 column(s) have type inconsistencies
+
+   Column validation errors:
+     • amount:
+         Expected type: numeric (int/float)
+         Error rate: 4.00% (4 values)
+         Sample errors: 'N/A', 'unknown', '-'
    ```
 
 ## 📊 Output Examples (输出示例)
